@@ -278,11 +278,9 @@ UPDATE public.users SET role = 'tutor'
 WHERE role = 'administrador'
   AND id <> (SELECT id FROM public.users WHERE role = 'administrador' ORDER BY id LIMIT 1);
 
--- NOTA: no se crea aquí el índice parcial WHERE role = 'administrador'.
--- Comparar un enum con un literal en el predicado de un índice falla en
--- Postgres moderno con 42P17 ("functions in index predicate must be marked
--- IMMUTABLE"). El administrador único se garantiza con el UPDATE anterior y
--- con ensureSystemAccounts() en cada arranque (src/lib/seed.ts).
+-- Índice parcial eliminado para evitar el error 42P17 (functions in index predicate must be marked IMMUTABLE)
+-- CREATE UNIQUE INDEX IF NOT EXISTS users_single_administrator_idx
+--   ON public.users (role) WHERE role = 'administrador';
 
 -- ---------------------------------------------------------------------------
 -- Códigos de verificación / recuperación
