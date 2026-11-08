@@ -278,6 +278,10 @@ UPDATE public.users SET role = 'tutor'
 WHERE role = 'administrador'
   AND id <> (SELECT id FROM public.users WHERE role = 'administrador' ORDER BY id LIMIT 1);
 
+-- Índice parcial eliminado para evitar el error 42P17 (functions in index predicate must be marked IMMUTABLE)
+-- CREATE UNIQUE INDEX IF NOT EXISTS users_single_administrator_idx
+--   ON public.users (role) WHERE role = 'administrador';
+
 -- ---------------------------------------------------------------------------
 -- Códigos de verificación / recuperación
 -- ---------------------------------------------------------------------------
@@ -436,4 +440,3 @@ ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS value text;
 ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
 
 COMMIT;
-```[cite: 13, 14]
