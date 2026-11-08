@@ -11,7 +11,7 @@ import { db } from "@/db";
 const REQUIRED_COLUMNS: Record<string, readonly string[]> = {
   users: [
     "id", "name", "email", "password_hash", "role", "cedula", "phone", "trayecto",
-    "email_verified", "is_active", "verified_at", "created_at",
+    "email_verified", "is_active", "approval_status", "verified_at", "created_at",
   ],
   verification_codes: [
     "id", "user_id", "email", "purpose", "code_hash", "attempts", "expires_at", "consumed_at", "created_at",

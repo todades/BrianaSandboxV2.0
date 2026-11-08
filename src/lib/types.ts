@@ -1,4 +1,4 @@
-import type { ProjectStatus, Role } from "./constants";
+import type { ApprovalStatus, ProjectStatus, Role } from "./constants";
 
 export interface UserDTO {
   id: number;
@@ -10,6 +10,7 @@ export interface UserDTO {
   trayecto: string | null;
   emailVerified: boolean;
   isActive: boolean;
+  approvalStatus: ApprovalStatus;
   createdAt: string;
 }
 
@@ -76,6 +77,12 @@ export interface AuditDTO {
   entityId: number | null;
   details: unknown;
   createdAt: string;
+  readable?: {
+    action: string;
+    entity: string;
+    role: string;
+    detail: string;
+  };
 }
 
 export interface AiExtraction {

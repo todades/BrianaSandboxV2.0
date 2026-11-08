@@ -30,6 +30,13 @@ export async function POST(req: Request) {
     }
 
     const [fresh] = await db.select().from(users).where(eq(users.id, user.id)).limit(1);
+    if (fresh.role === "tutor" && fresh.approvalStatus === "pending") {
+      throw new HttpError(403, "Correo verificado. Tu solicitud de tutor quedó pendiente de aprobación por el administrador.", { approvalPending: true });
+    }
+    if (fresh.role === "tutor" && fresh.approvalStatus === "rejected") {
+      throw new HttpError(403, "Tu solicitud de tutor fue rechazada por el administrador.", { approvalRejected: true });
+    }
+    if (!fresh.isActive) throw new HttpError(403, "Tu cuenta está deshabilitada. Contacta al administrador institucional.");
     const sessionToken = await createSession(fresh);
     await logAudit({ user: fresh, action: "LOGIN", entity: "usuario", entityId: fresh.id, details: { via: "verificacion" } });
     const payload = { user: toUserDTO(fresh) };

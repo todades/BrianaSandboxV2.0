@@ -29,6 +29,8 @@ export const projectStatusEnum = pgEnum("project_status", [
 
 export const codePurposeEnum = pgEnum("code_purpose", ["verify_email", "reset_password"]);
 
+export const userApprovalStatusEnum = pgEnum("user_approval_status", ["pending", "approved", "rejected"]);
+
 /* ------------------------------------------------------------------ */
 /* Custom bytea type for binary file storage                           */
 /* ------------------------------------------------------------------ */
@@ -54,6 +56,7 @@ export const users = pgTable(
     trayecto: varchar("trayecto", { length: 50 }),
     emailVerified: boolean("email_verified").notNull().default(false),
     isActive: boolean("is_active").notNull().default(true),
+    approvalStatus: userApprovalStatusEnum("approval_status").notNull().default("approved"),
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },

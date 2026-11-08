@@ -80,13 +80,13 @@ async function main() {
       await client.connect();
       ok("Conexión PostgreSQL establecida.");
       const cols = await db.execute(sql.raw(
-        "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='users' AND column_name IN ('name','email','password_hash','is_active','email_verified','verified_at')"
+        "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='users' AND column_name IN ('name','email','password_hash','is_active','email_verified','approval_status','verified_at')"
       ));
       const enumRow = await db.execute(sql.raw(
         "SELECT 1 FROM pg_enum e JOIN pg_type t ON t.oid=e.enumtypid JOIN pg_namespace n ON n.oid=t.typnamespace WHERE n.nspname='public' AND t.typname='project_status' AND e.enumlabel='devuelto_tutor' LIMIT 1"
       ));
       const names = new Set(cols.rows.map((r) => r.column_name));
-      const missing = ["name", "email", "password_hash", "is_active", "email_verified", "verified_at"].filter((c) => !names.has(c));
+      const missing = ["name", "email", "password_hash", "is_active", "email_verified", "approval_status", "verified_at"].filter((c) => !names.has(c));
       if (missing.length || enumRow.rowCount === 0) {
         bad(`Esquema desactualizado: falta ${[...missing, enumRow.rowCount === 0 ? "project_status.devuelto_tutor" : null].filter(Boolean).join(", ")}.`);
         if (process.argv.includes("--fix")) {

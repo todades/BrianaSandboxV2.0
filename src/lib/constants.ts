@@ -60,6 +60,13 @@ export const PROJECT_STATUS = [
 
 export type ProjectStatus = (typeof PROJECT_STATUS)[number];
 export type Role = "estudiante" | "tutor" | "administrador";
+export type ApprovalStatus = "pending" | "approved" | "rejected";
+
+export const APPROVAL_LABEL: Record<ApprovalStatus, string> = {
+  pending: "Pendiente de aprobación",
+  approved: "Aprobada",
+  rejected: "Rechazada",
+};
 
 export const STATUS_META: Record<
   ProjectStatus,

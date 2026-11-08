@@ -92,6 +92,8 @@ export async function POST(req: Request) {
         role: accountType,
         passwordHash: hashPassword(password),
         emailVerified: false,
+        approvalStatus: accountType === "tutor" ? "pending" : "approved",
+        isActive: accountType !== "tutor",
       })
       .returning();
 
@@ -105,14 +107,15 @@ export async function POST(req: Request) {
 
     await logAudit({
       user: created,
-      action: "REGISTRO_CUENTA",
+      action: accountType === "tutor" ? "SOLICITUD_TUTOR_REGISTRADA" : "REGISTRO_CUENTA",
       entity: "usuario",
       entityId: created.id,
-      details: { role: created.role, email: created.email, codigoEnviado: dispatch?.delivered ?? false },
+      details: { role: created.role, email: created.email, approvalStatus: created.approvalStatus, codigoEnviado: dispatch?.delivered ?? false },
     });
 
-    const payload: CodeDispatch & { pendingVerification: true } = {
+    const payload: CodeDispatch & { pendingVerification: true; approvalPending?: boolean } = {
       pendingVerification: true,
+      approvalPending: created.approvalStatus === "pending",
       email: created.email,
       name: created.name,
       delivered: dispatch?.delivered ?? false,

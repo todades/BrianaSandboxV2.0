@@ -309,3 +309,23 @@ ADMIN_PASSWORD=una_clave_nueva_y_segura
 
 Guarda y redespliega. BRIANA degrada al administrador anterior y sincroniza el
 nuevo en una transacción.
+
+---
+
+## 14. Solicitudes de tutor, aprobación y eliminación de cuentas
+
+Desde esta versión:
+
+- Registrarse como **Tutor** crea una **solicitud pendiente** (`approval_status = pending`).
+- El tutor debe verificar su correo, pero **no puede iniciar sesión** hasta que
+  el administrador apruebe la solicitud.
+- El administrador ve las solicitudes en **Panel de Administración → Cuentas**.
+- En esa pestaña puede **aprobar**, **rechazar**, **activar/desactivar** y
+  **eliminar** cuentas de estudiante o tutor.
+- Los estudiantes solo pueden seleccionar tutores **aprobados** en el Sandbox.
+- La migración añade `users.approval_status` y relaja columnas opcionales
+  antiguas (`cedula`, `phone`, `trayecto`) para evitar el error genérico 500 al
+  registrar tutores.
+
+Si `/api/health` muestra `missingColumns: ["users.approval_status"]`, redespliega
+o ejecuta `node scripts/migrate-production.cjs`. La migración es idempotente.

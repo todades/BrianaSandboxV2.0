@@ -1,4 +1,4 @@
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { handleError, requireUser } from "@/lib/auth";
@@ -23,7 +23,7 @@ export async function GET() {
         isActive: users.isActive,
       })
       .from(users)
-      .where(eq(users.role, "tutor"))
+      .where(and(eq(users.role, "tutor"), eq(users.approvalStatus, "approved")))
       .orderBy(asc(sql`lower(${users.name})`), asc(users.name));
     return Response.json({ tutors: rows });
   } catch (e) {

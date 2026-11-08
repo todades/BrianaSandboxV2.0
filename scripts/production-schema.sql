@@ -45,6 +45,14 @@ BEGIN
 END
 $$;
 
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid=t.typnamespace WHERE n.nspname='public' AND t.typname = 'user_approval_status') THEN
+    CREATE TYPE public.user_approval_status AS ENUM ('pending', 'approved', 'rejected');
+  END IF;
+END
+$$;
+
 -- ---------------------------------------------------------------------------
 -- Users: crea la tabla si falta y repara tablas antiguas sin borrar filas
 -- ---------------------------------------------------------------------------
@@ -59,6 +67,7 @@ CREATE TABLE IF NOT EXISTS public.users (
   trayecto varchar(50),
   email_verified boolean NOT NULL DEFAULT false,
   is_active boolean NOT NULL DEFAULT true,
+  approval_status public.user_approval_status NOT NULL DEFAULT 'approved',
   verified_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT users_email_unique UNIQUE (email)
@@ -73,7 +82,17 @@ ALTER TABLE public.users ADD COLUMN IF NOT EXISTS phone varchar(50);
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS trayecto varchar(50);
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS email_verified boolean NOT NULL DEFAULT false;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT true;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS approval_status public.user_approval_status NOT NULL DEFAULT 'approved';
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS verified_at timestamptz;
+
+-- Campos opcionales en el diseño actual: evita errores 500 en bases antiguas
+-- donde cedula/teléfono/trayecto quedaron como NOT NULL.
+ALTER TABLE public.users ALTER COLUMN cedula DROP NOT NULL;
+ALTER TABLE public.users ALTER COLUMN phone DROP NOT NULL;
+ALTER TABLE public.users ALTER COLUMN trayecto DROP NOT NULL;
+UPDATE public.users SET approval_status = 'approved' WHERE approval_status IS NULL;
+ALTER TABLE public.users ALTER COLUMN approval_status SET DEFAULT 'approved';
+ALTER TABLE public.users ALTER COLUMN approval_status SET NOT NULL;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
 
 -- Recupera datos desde columnas antiguas si existen.

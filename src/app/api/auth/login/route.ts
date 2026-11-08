@@ -49,6 +49,12 @@ async function handleLogin(req: Request) {
     await logAudit({ user: null, action: "LOGIN_FALLIDO", details: { email } });
     throw new HttpError(401, "Credenciales incorrectas.");
   }
+  if (user.role === "tutor" && user.approvalStatus === "pending") {
+    throw new HttpError(403, "Tu solicitud de tutor está pendiente de aprobación por el administrador. Verifica tu correo y espera la aprobación.", { approvalPending: true });
+  }
+  if (user.role === "tutor" && user.approvalStatus === "rejected") {
+    throw new HttpError(403, "Tu solicitud de tutor fue rechazada por el administrador.", { approvalRejected: true });
+  }
   if (!user.isActive) throw new HttpError(403, "Tu cuenta está deshabilitada. Contacta al administrador institucional.");
 
   if (!user.emailVerified) {

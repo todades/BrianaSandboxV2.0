@@ -73,10 +73,10 @@ async function migrateDatabase(connectionString) {
     await db.execute(sql.raw("SET search_path TO public"));
     await db.execute(sql.raw(sqlScript));
     const check = await db.execute(sql.raw(
-      "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='users' AND column_name IN ('name','email','password_hash','is_active','email_verified')"
+      "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='users' AND column_name IN ('name','email','password_hash','is_active','email_verified','approval_status')"
     ));
     const present = new Set(check.rows.map((r) => r.column_name));
-    const missing = ["name", "email", "password_hash", "is_active", "email_verified"].filter((c) => !present.has(c));
+    const missing = ["name", "email", "password_hash", "is_active", "email_verified", "approval_status"].filter((c) => !present.has(c));
     if (missing.length) {
       const error = new Error(`La migración terminó pero faltan columnas en users: ${missing.join(", ")}`);
       error.code = "SCHEMA_INCOMPLETE";

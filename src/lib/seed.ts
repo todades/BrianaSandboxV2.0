@@ -72,6 +72,7 @@ export async function ensureSystemAccounts(force = false): Promise<void> {
           name,
           emailVerified: true,
           isActive: true,
+          approvalStatus: "approved",
         };
         if (!existing.verifiedAt) updates.verifiedAt = new Date();
         if (!existing.passwordHash || !verifyPassword(password, existing.passwordHash)) {
@@ -96,7 +97,7 @@ export async function ensureSystemAccounts(force = false): Promise<void> {
         } else {
           await tx
             .update(users)
-            .set({ role: "tutor", emailVerified: true, isActive: true, verifiedAt: found.verifiedAt ?? new Date() })
+            .set({ role: "tutor", emailVerified: true, isActive: true, approvalStatus: "approved", verifiedAt: found.verifiedAt ?? new Date() })
             .where(eq(users.id, found.id));
         }
       }

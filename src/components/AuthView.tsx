@@ -255,6 +255,8 @@ export function AuthView({ onAuth }: { onAuth: (user: UserDTO) => void }) {
       if (err instanceof ApiError && err.data?.needsVerification) {
         setInfo(err.message);
         startCodeFlow("verify", toDispatch(email, err.data));
+      } else if (err instanceof ApiError && (err.data?.approvalPending || err.data?.approvalRejected)) {
+        setInfo(err.message);
       } else {
         setError(err instanceof Error ? err.message : "Ocurrió un error inesperado.");
       }
@@ -298,7 +300,11 @@ export function AuthView({ onAuth }: { onAuth: (user: UserDTO) => void }) {
         password,
         confirm: password2,
       });
-      setInfo("Cuenta creada. Confirma tu correo con el código de 6 dígitos para activarla.");
+      if (accountType === "tutor" || res.approvalPending) {
+        setInfo("Solicitud de tutor enviada. Confirma tu correo con el código de 6 dígitos; luego el administrador debe aprobar la solicitud antes de que puedas iniciar sesión como tutor.");
+      } else {
+        setInfo("Cuenta creada. Confirma tu correo con el código de 6 dígitos para activarla.");
+      }
       startCodeFlow("verify", toDispatch(email, res));
     } catch (err) {
       if (err instanceof ApiError && err.data?.needsVerification) {
@@ -327,7 +333,14 @@ export function AuthView({ onAuth }: { onAuth: (user: UserDTO) => void }) {
       toast.success("¡Cuenta verificada!", "Tu correo fue confirmado y ya tienes acceso al repositorio.");
       onAuth(user);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo verificar el código.");
+      if (err instanceof ApiError && (err.data?.approvalPending || err.data?.approvalRejected)) {
+        setInfo(err.message);
+        setView("login");
+        setOtp("");
+        toast.info("Correo verificado", err.message);
+      } else {
+        setError(err instanceof Error ? err.message : "No se pudo verificar el código.");
+      }
     } finally {
       setLoading(false);
     }

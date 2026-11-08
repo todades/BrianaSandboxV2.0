@@ -98,6 +98,7 @@ export function toUserDTO(u: UserRow): UserDTO {
     trayecto: u.trayecto,
     emailVerified: u.emailVerified,
     isActive: u.isActive,
+    approvalStatus: u.approvalStatus,
     createdAt: u.createdAt.toISOString(),
   };
 }
@@ -170,6 +171,12 @@ export async function requireUser(roles?: Role[]): Promise<UserRow> {
     throw new HttpError(401, "Tu sesión venció o dejó de ser válida. Inicia sesión otra vez.", {
       authExpired: true,
     });
+  }
+  if (user.approvalStatus === "pending") {
+    throw new HttpError(403, "Tu solicitud de tutor está pendiente de aprobación por el administrador.", { approvalPending: true });
+  }
+  if (user.approvalStatus === "rejected") {
+    throw new HttpError(403, "Tu solicitud de tutor fue rechazada por el administrador.", { approvalRejected: true });
   }
   if (!user.isActive) {
     throw new HttpError(403, "Tu cuenta está deshabilitada. Contacta al administrador institucional.");

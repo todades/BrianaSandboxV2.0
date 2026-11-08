@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useProjectList } from "./useProjectList";
 import {
   Sparkles,
   BarChart3,
@@ -23,10 +24,15 @@ import {
 } from "lucide-react";
 import { api, formatDate, postJson } from "@/lib/api-client";
 import { STATUS_META, type ProjectStatus } from "@/lib/constants";
+import { describeAudit } from "@/lib/audit-labels";
 import type { AiStatus, AuditDTO, ProjectDTO, ServerSettings, UserDTO } from "@/lib/types";
 import { TopNav } from "./TopNav";
 import { SandboxPanel } from "./SandboxPanel";
 import { ProjectCard, ProjectDetailModal } from "./ProjectViews";
+import { ReportsPanel } from "./ReportsPanel";
+import { AccountsAdmin } from "./AccountsAdmin";
+import { ProjectFilters } from "./ProjectFilters";
+import { ALL_PROJECTS_FILTER, isProjectFilterActive, matchesProjectFilter, matchesProjectSearch, type ProjectFilter } from "@/lib/project-filters";
 import {
   Alert,
   EmptyState,
@@ -39,7 +45,7 @@ import {
   StatusBadge,
 } from "./ui";
 
-type Tab = "sandbox" | "reportes" | "tutores" | "auditoria" | "servidor";
+type Tab = "sandbox" | "reportes" | "tutores" | "cuentas" | "auditoria" | "servidor";
 
 /* ------------------------------------------------------------------ */
 /* Servidor                                                            */
@@ -289,172 +295,124 @@ function ServerTab() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Reportes                                                            */
-/* ------------------------------------------------------------------ */
-interface Reports {
-  totals: { projects: number; published: number; pendingAdmin: number; pendingTutor: number; users: number; aiCalls: number };
-  usersByRole: { role: string; total: number }[];
-  byStatus: { key: string; total: number }[];
-  byLinea: { key: string; total: number }[];
-  byTipo: { key: string; total: number }[];
-  byTrayecto: { key: string; total: number }[];
-  byAnio: { key: string; total: number }[];
-  tutorsLoad: { id: number; name: string; total: number }[];
-  recent: { id: number; titulo: string; status: ProjectStatus; updatedAt: string; studentName: string | null }[];
-}
-
-function Bars({ title, rows, labelFor }: { title: string; rows: { key: string; total: number }[]; labelFor?: (k: string) => string }) {
-  const max = Math.max(1, ...rows.map((r) => r.total));
-  return (
-    <div className="card p-5">
-      <h3 className="text-sm font-bold text-ink mb-4">{title}</h3>
-      {rows.length === 0 ? (
-        <p className="text-xs text-muted2">Sin datos todavía.</p>
-      ) : (
-        <div className="space-y-3">
-          {rows.map((r) => (
-            <div key={r.key}>
-              <div className="flex justify-between text-xs mb-1">
-                <span className="text-ink-soft truncate pr-2">{labelFor ? labelFor(r.key) : r.key}</span>
-                <span className="font-bold text-ink">{r.total}</span>
-              </div>
-              <div className="bar-track">
-                <div className="bar-fill" style={{ width: `${(r.total / max) * 100}%` }} />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ReportsTab() {
-  const [data, setData] = useState<Reports | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    api<Reports>("/api/admin/reports")
-      .then(setData)
-      .catch((e) => setError(e instanceof Error ? e.message : "Error"));
-  }, []);
-
-  if (error) return <Alert tone="error">{error}</Alert>;
-  if (!data) return <Spinner label="Generando reportes..." />;
-
-  return (
-    <div className="space-y-6 fade-in">
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-        <StatCard label="Proyectos" value={data.totals.projects} icon={<BookOpen size={20} />} tone="cyan" />
-        <StatCard label="Publicados" value={data.totals.published} icon={<CheckCircle2 size={20} />} tone="emerald" />
-        <StatCard label="Pend. Admin" value={data.totals.pendingAdmin} icon={<Inbox size={20} />} tone="blue" />
-        <StatCard label="Pend. Tutor" value={data.totals.pendingTutor} icon={<ClipboardCheck size={20} />} tone="amber" />
-        <StatCard label="Usuarios" value={data.totals.users} icon={<Users size={20} />} tone="purple" />
-        <StatCard label="Consultas IA" value={data.totals.aiCalls} icon={<Bot size={20} />} tone="cyan" />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Bars title="Proyectos por estado" rows={data.byStatus} labelFor={(k) => STATUS_META[k as ProjectStatus]?.label ?? k} />
-        <Bars title="Proyectos por línea de investigación" rows={data.byLinea} />
-        <Bars title="Proyectos por tipo de recurso" rows={data.byTipo} />
-        <Bars title="Proyectos por trayecto" rows={data.byTrayecto} />
-        <Bars title="Proyectos por año de publicación" rows={data.byAnio} />
-        <Bars title="Carga de proyectos por tutor" rows={data.tutorsLoad.map((t) => ({ key: t.name, total: t.total }))} />
-        <Bars title="Usuarios por rol" rows={data.usersByRole.map((u) => ({ key: u.role, total: u.total }))} />
-        <div className="card p-5">
-          <h3 className="text-sm font-bold text-ink mb-4">Actividad reciente</h3>
-          {data.recent.length === 0 ? (
-            <p className="text-xs text-muted2">Sin proyectos registrados.</p>
-          ) : (
-            <ul className="space-y-3">
-              {data.recent.map((r) => (
-                <li key={r.id} className="flex items-start justify-between gap-3 text-xs">
-                  <div className="min-w-0">
-                    <p className="text-ink font-medium line-clamp-1">{r.titulo}</p>
-                    <p className="text-muted2">
-                      {r.studentName} · {formatDate(r.updatedAt)}
-                    </p>
-                  </div>
-                  <StatusBadge status={r.status} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /* Auditoría                                                           */
 /* ------------------------------------------------------------------ */
 function AuditTab() {
+  const pageSize = 100;
   const [logs, setLogs] = useState<AuditDTO[] | null>(null);
+  const [total, setTotal] = useState(0);
+  const [offset, setOffset] = useState(0);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
-  const load = useCallback(() => {
-    api<{ logs: AuditDTO[] }>("/api/admin/audit")
-      .then((r) => setLogs(r.logs))
-      .catch((e) => setError(e instanceof Error ? e.message : "Error"));
+  const load = useCallback(async (nextOffset = 0) => {
+    setLoading(true);
+    try {
+      const result = await api<{ logs: AuditDTO[]; total: number; offset: number }>(
+        `/api/admin/audit?limit=${pageSize}&offset=${nextOffset}`
+      );
+      setLogs(result.logs);
+      setTotal(result.total);
+      setOffset(result.offset);
+      setError(null);
+    } catch (e) {
+      // No vaciamos el historial que ya estaba visible cuando falla actualizar.
+      setError(e instanceof Error ? e.message : "No se pudo actualizar el historial.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(load, [load]);
+  useEffect(() => {
+    queueMicrotask(() => void load(0));
+  }, [load]);
+
+  const visibleLogs = useMemo(() => {
+    const q = search.trim().toLocaleLowerCase("es");
+    return (logs ?? [])
+      .map((log) => ({
+        log,
+        readable: log.readable ?? describeAudit(log.action, log.entity, log.userRole, log.details),
+      }))
+      .filter(({ log, readable }) =>
+        !q ||
+        [log.userName ?? "", readable.action, readable.entity, readable.role, readable.detail, formatDate(log.createdAt)]
+          .join(" ")
+          .toLocaleLowerCase("es")
+          .includes(q)
+      );
+  }, [logs, search]);
 
   return (
     <div className="card overflow-hidden fade-in">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-line">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-line">
         <div>
           <h3 className="text-sm font-bold text-ink flex items-center gap-2">
-            <Activity size={16} className="text-cyan-500" /> Registro de auditoría
+            <Activity size={16} className="text-cyan-500" /> Historial de actividad
           </h3>
-          <p className="text-xs text-muted">Trazabilidad de accesos, envíos, validaciones, publicaciones y cambios de configuración.</p>
+          <p className="text-xs text-muted mt-1">
+            Registro de accesos, envíos, correcciones, publicaciones y cambios de configuración. Actualizar no borra el historial.
+          </p>
         </div>
-        <SecondaryButton size="sm" icon={<RefreshCw size={13} />} onClick={load}>
+        <SecondaryButton size="sm" icon={<RefreshCw size={13} />} onClick={() => void load(offset)} loading={loading}>
           Actualizar
         </SecondaryButton>
       </div>
+
+      <div className="px-5 py-4 border-b border-line">
+        <label htmlFor="audit-search" className="sr-only">Buscar en el historial</label>
+        <input
+          id="audit-search"
+          className="input-base max-w-xl"
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar por persona, acción, proyecto o fecha..."
+        />
+        <p className="text-xs text-muted2 mt-2">
+          {search ? `${visibleLogs.length} coincidencia(s) en esta página.` : `${total} registro(s) conservados en el historial.`}
+        </p>
+      </div>
+
       {error && <div className="p-4"><Alert tone="error">{error}</Alert></div>}
       {logs === null ? (
         <Spinner />
-      ) : logs.length === 0 ? (
-        <div className="p-8"><EmptyState icon={<ShieldCheck size={36} />} title="Sin eventos registrados" /></div>
+      ) : visibleLogs.length === 0 ? (
+        <div className="p-8"><EmptyState icon={<ShieldCheck size={36} />} title={search ? "No hay coincidencias" : "Sin actividad registrada"} /></div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead className="bg-card2 text-muted uppercase tracking-wider text-[0.65rem]">
-              <tr>
-                <th className="text-left px-5 py-2.5 font-bold">Fecha</th>
-                <th className="text-left px-5 py-2.5 font-bold">Usuario</th>
-                <th className="text-left px-5 py-2.5 font-bold">Acción</th>
-                <th className="text-left px-5 py-2.5 font-bold">Entidad</th>
-                <th className="text-left px-5 py-2.5 font-bold">Detalles</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {logs.map((l) => (
-                <tr key={l.id} className="hover:bg-card2/60">
-                  <td className="px-5 py-2.5 whitespace-nowrap text-muted">{formatDate(l.createdAt)}</td>
-                  <td className="px-5 py-2.5 whitespace-nowrap">
-                    <span className="text-ink font-medium">{l.userName}</span>
-                    <span className="text-muted2"> · {l.userRole}</span>
-                  </td>
-                  <td className="px-5 py-2.5 whitespace-nowrap">
-                    <span className="font-mono text-cyan-600 dark:text-cyan-300">{l.action}</span>
-                  </td>
-                  <td className="px-5 py-2.5 whitespace-nowrap text-muted">
-                    {l.entity ?? "—"}
-                    {l.entityId ? ` #${l.entityId}` : ""}
-                  </td>
-                  <td className="px-5 py-2.5 text-muted max-w-md">
-                    <span className="line-clamp-2 font-mono text-[0.65rem]">
-                      {l.details ? JSON.stringify(l.details) : "—"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="divide-y divide-line">
+          {visibleLogs.map(({ log, readable }) => (
+            <article key={log.id} className="px-5 py-4 hover:bg-card2/50">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <h4 className="text-sm font-semibold text-ink">{readable.action}</h4>
+                  <p className="text-xs text-muted mt-1">
+                    {log.userName ?? "Sistema"} · {readable.role} · {readable.entity}
+                    {log.entityId ? ` n.º ${log.entityId}` : ""}
+                  </p>
+                </div>
+                <time className="text-xs text-muted2 whitespace-nowrap" dateTime={log.createdAt}>{formatDate(log.createdAt)}</time>
+              </div>
+              <p className="mt-2 text-sm leading-relaxed text-ink-soft whitespace-pre-wrap break-words">{readable.detail}</p>
+            </article>
+          ))}
+        </div>
+      )}
+
+      {total > pageSize && (
+        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-t border-line">
+          <p className="text-xs text-muted">
+            Mostrando {offset + 1}–{Math.min(offset + pageSize, total)} de {total} registros.
+          </p>
+          <div className="flex gap-2">
+            <SecondaryButton size="sm" disabled={loading || offset === 0} onClick={() => void load(Math.max(0, offset - pageSize))}>
+              Anteriores
+            </SecondaryButton>
+            <SecondaryButton size="sm" disabled={loading || offset + pageSize >= total} onClick={() => void load(offset + pageSize)}>
+              Siguientes
+            </SecondaryButton>
+          </div>
         </div>
       )}
     </div>
@@ -465,26 +423,16 @@ function AuditTab() {
 /* Envíos por Tutores                                                  */
 /* ------------------------------------------------------------------ */
 function TutorSubmissionsTab({ user }: { user: UserDTO }) {
-  const [projects, setProjects] = useState<ProjectDTO[] | null>(null);
-  type FilterId = "validado_tutor" | "mios" | "todos" | ProjectStatus;
+  const { projects, error: projectError, loading, load, applyUpdated, removeDeleted } = useProjectList();
   type TutorAccount = { id: number; name: string; email: string; role: "tutor" | "administrador"; isActive: boolean };
-  const [filter, setFilter] = useState<FilterId>("validado_tutor");
-  const [selected, setSelected] = useState<ProjectDTO | null>(null);
+  const [filter, setFilter] = useState<ProjectFilter>({ field: "status", value: "validado_tutor" });
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [tutorAccounts, setTutorAccounts] = useState<TutorAccount[]>([]);
   const [tutorListOpen, setTutorListOpen] = useState(false);
   const [togglingTutor, setTogglingTutor] = useState<number | null>(null);
-
-  const load = useCallback(async () => {
-    try {
-      const { projects } = await api<{ projects: ProjectDTO[] }>("/api/projects");
-      setProjects(projects);
-      setError(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Error");
-    }
-  }, []);
+  const selected = useMemo(() => projects?.find((p) => p.id === selectedId) ?? null, [projects, selectedId]);
 
   const loadTutors = useCallback(async () => {
     try {
@@ -506,8 +454,8 @@ function TutorSubmissionsTab({ user }: { user: UserDTO }) {
     setTogglingTutor(tutor.id);
     setError(null);
     try {
-      const updated = await postJson<TutorAccount>(`/api/admin/users/${tutor.id}`, { isActive: !tutor.isActive }, "PATCH");
-      setTutorAccounts((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+      const { user: updated } = await postJson<{ user: TutorAccount }>(`/api/admin/users/${tutor.id}`, { isActive: !tutor.isActive }, "PATCH");
+      setTutorAccounts((prev) => prev.map((t) => (t.id === updated.id ? { ...t, isActive: updated.isActive } : t)));
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo cambiar el estado del tutor.");
     } finally {
@@ -515,36 +463,21 @@ function TutorSubmissionsTab({ user }: { user: UserDTO }) {
     }
   }
 
-  const filters: { id: FilterId; label: string; test: (p: ProjectDTO) => boolean; icon?: ReactNode }[] = useMemo(
-    () => [
-      { id: "validado_tutor", label: "Pendientes de publicación", test: (p) => p.status === "validado_tutor" },
-      {
-        id: "mios",
-        label: "Asignados a mí (en revisión)",
-        test: (p) => p.tutorId === user.id && (p.status === "enviado_tutor" || p.status === "devuelto_tutor"),
-        icon: <UserCheck size={12} />,
-      },
-      { id: "publicado", label: "Publicados", test: (p) => p.status === "publicado" },
-      { id: "enviado_tutor", label: "En revisión por tutores", test: (p) => p.status === "enviado_tutor" },
-      { id: "devuelto_tutor", label: "Devueltos al tutor", test: (p) => p.status === "devuelto_tutor" },
-      { id: "devuelto", label: "Devueltos al estudiante", test: (p) => p.status === "devuelto" },
-      { id: "rechazado", label: "Rechazados", test: (p) => p.status === "rechazado" },
-      { id: "todos", label: "Todos", test: () => true },
-    ],
-    [user.id]
+  const allProjects = useMemo(() => projects ?? [], [projects]);
+  const quickFilters: { label: string; filter: ProjectFilter }[] = [
+    { label: "Todos", filter: ALL_PROJECTS_FILTER },
+    { label: "Pendientes de publicación", filter: { field: "status", value: "validado_tutor" } },
+    { label: "En revisión por tutores", filter: { field: "status", value: "enviado_tutor" } },
+    { label: "Devueltos al tutor", filter: { field: "status", value: "devuelto_tutor" } },
+    { label: "Devueltos al estudiante", filter: { field: "status", value: "devuelto" } },
+    { label: "Publicados", filter: { field: "status", value: "publicado" } },
+    { label: "Rechazados", filter: { field: "status", value: "rechazado" } },
+  ];
+  const list = useMemo(
+    () => allProjects.filter((p) => matchesProjectFilter(p, filter) && matchesProjectSearch(p, search)),
+    [allProjects, filter, search]
   );
-
-  const list = useMemo(() => {
-    const f = filters.find((x) => x.id === filter) ?? filters[0];
-    const q = search.trim().toLocaleLowerCase("es");
-    return (projects ?? []).filter(f.test).filter((p) =>
-      !q ||
-      [p.titulo, p.codigo ?? "", p.studentName ?? "", p.tutorCuenta ?? "", p.status, p.observaciones ?? ""]
-        .join(" ")
-        .toLocaleLowerCase("es")
-        .includes(q)
-    );
-  }, [projects, filter, filters, search]);
+  const filtersActive = isProjectFilterActive(filter) || search.trim().length > 0;
 
   return (
     <div className="space-y-4 fade-in">
@@ -593,46 +526,45 @@ function TutorSubmissionsTab({ user }: { user: UserDTO }) {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
-          {filters.map((f) => {
-            const c = (projects ?? []).filter(f.test).length;
+          {quickFilters.map((f) => {
+            const c = allProjects.filter((p) => matchesProjectFilter(p, f.filter)).length;
+            const active = filter.field === f.filter.field && filter.value === f.filter.value;
             return (
-              <SecondaryButton key={f.id} size="sm" active={filter === f.id} onClick={() => setFilter(f.id)} icon={f.icon}>
+              <SecondaryButton key={f.label} size="sm" active={active} onClick={() => setFilter(f.filter)}>
                 {f.label} <span className="opacity-70">({c})</span>
               </SecondaryButton>
             );
           })}
         </div>
-        <SecondaryButton size="sm" icon={<RefreshCw size={13} />} onClick={() => { void load(); void loadTutors(); }}>
+        <SecondaryButton size="sm" icon={<RefreshCw size={13} />} onClick={() => { void load(); void loadTutors(); }} loading={loading}>
           Actualizar
         </SecondaryButton>
       </div>
 
-      <div className="max-w-md">
-        <label className="sr-only" htmlFor="admin-project-search">Buscar proyectos</label>
-        <input
-          id="admin-project-search"
-          className="input-base"
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar por título, código, estudiante o tutor..."
-        />
-      </div>
+      <ProjectFilters
+        idPrefix="admin-project"
+        projects={allProjects}
+        filter={filter}
+        onFilterChange={setFilter}
+        search={search}
+        onSearchChange={setSearch}
+        resultCount={list.length}
+      />
 
-      {error && <Alert tone="error">{error}</Alert>}
+      {(error || projectError) && <Alert tone="error">{error || projectError}</Alert>}
       {projects === null ? (
         <Spinner />
       ) : list.length === 0 ? (
         <div className="card p-10">
           <EmptyState icon={<ClipboardCheck size={38} />} title="No hay proyectos en esta categoría">
-            Los proyectos validados por los tutores aparecerán aquí para su auditoría y publicación oficial.
+            {filtersActive ? "Cambia la categoría o limpia los filtros para ver otros proyectos." : "Los proyectos enviados por los tutores aparecerán aquí para su revisión y publicación."}
           </EmptyState>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {list.map((p) => (
-              <ProjectCard key={p.id} project={p} role={user.role} onOpen={setSelected} showFiles={false} />
-            ))}
+          {list.map((p) => (
+            <ProjectCard key={p.id} project={p} role={user.role} onOpen={(project) => setSelectedId(project.id)} showFiles={false} />
+          ))}
         </div>
       )}
 
@@ -640,12 +572,9 @@ function TutorSubmissionsTab({ user }: { user: UserDTO }) {
         project={selected}
         user={user}
         hideFiles
-        onClose={() => setSelected(null)}
-        onUpdated={(p) => {
-          setProjects((prev) => (prev ?? []).map((x) => (x.id === p.id ? p : x)));
-          setSelected(p);
-        }}
-        onDeleted={(id) => setProjects((prev) => (prev ?? []).filter((p) => p.id !== id))}
+        onClose={() => setSelectedId(null)}
+        onUpdated={applyUpdated}
+        onDeleted={removeDeleted}
       />
     </div>
   );
@@ -679,6 +608,7 @@ export function AdminDashboard({ user, onLogout }: { user: UserDTO; onLogout: ()
               { id: "sandbox", label: "Sandbox", icon: <Sparkles size={14} /> },
               { id: "reportes", label: "Reportes", icon: <BarChart3 size={14} /> },
               { id: "tutores", label: "Envíos por Tutores", icon: <ClipboardCheck size={14} /> },
+              { id: "cuentas", label: "Cuentas", icon: <Users size={14} /> },
               { id: "auditoria", label: "Auditoría", icon: <ShieldCheck size={14} /> },
               { id: "servidor", label: "Servidor", icon: <Server size={14} /> },
             ]}
@@ -686,8 +616,9 @@ export function AdminDashboard({ user, onLogout }: { user: UserDTO; onLogout: ()
         </div>
 
         {tab === "sandbox" && <SandboxPanel user={user} />}
-        {tab === "reportes" && <ReportsTab />}
+        {tab === "reportes" && <ReportsPanel user={user} />}
         {tab === "tutores" && <TutorSubmissionsTab user={user} />}
+        {tab === "cuentas" && <AccountsAdmin user={user} />}
         {tab === "auditoria" && <AuditTab />}
         {tab === "servidor" && <ServerTab />}
       </main>
