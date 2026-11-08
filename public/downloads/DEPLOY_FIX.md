@@ -329,3 +329,35 @@ Desde esta versión:
 
 Si `/api/health` muestra `missingColumns: ["users.approval_status"]`, redespliega
 o ejecuta `node scripts/migrate-production.cjs`. La migración es idempotente.
+
+---
+
+## 15. Error 500 al registrarse: causa y corrección definitiva
+
+**Síntoma:** al crear una cuenta (tutor o estudiante) aparece
+“No se pudo completar la operación”, aunque `/api/health` dice `schema.ok: true`.
+
+**Causa:** la base de producción tiene restos de ediciones manuales
+(columnas `is_active`/`email_verified` con otro tipo, `role` como texto,
+etiquetas de enum faltantes o `id` sin secuencia). Además, ejecutar toda la
+migración en una sola llamada provocaba el error `55P04` de Postgres
+(“unsafe use of new value”) al añadir etiquetas de enum y usarlas seguidas.
+
+**Corrección incluida en esta versión:**
+
+- La migración se ejecuta en **dos fases**: primero los enums (Parte 1) y
+  después tablas y datos (Parte 2), cada una confirmada por separado.
+- Normaliza tipos heredados sin borrar filas: booleanos creados como
+  texto/número, `role`/`approval_status` creados como texto e `id` sin secuencia.
+- Completa las etiquetas faltantes de los 4 enums (`user_role`,
+  `user_approval_status`, `code_purpose`, `project_status`).
+- `/api/health` ahora muestra `usersColumns` (tipo de cada columna),
+  `enumLabels` y `typeProblems` para ver la deriva exacta.
+- Los errores de base de datos responden con mensajes claros en español
+  (duplicado, campo obligatorio, valor inválido, tipo incompatible, regla rota)
+  en vez del genérico 500.
+
+**Qué hacer:** redespliega con el código actualizado. La migración corre sola
+al arrancar. Si el registro sigue fallando, el mensaje indicará la tabla,
+columna o restricción exacta: pégalo tal cual para corregirlo.
+

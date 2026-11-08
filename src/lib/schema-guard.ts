@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { sql } from "drizzle-orm";
-import { db } from "@/db";
+import { db, pool } from "@/db";
 
 /**
  * BRIANA · Auto-reparación de esquema.
@@ -30,6 +30,13 @@ const REQUIRED_COLUMNS: Record<string, readonly string[]> = {
 
 const REQUIRED_TABLES = Object.keys(REQUIRED_COLUMNS);
 
+const REQUIRED_ENUM_LABELS: Record<string, readonly string[]> = {
+  user_role: ["estudiante", "tutor", "administrador"],
+  user_approval_status: ["pending", "approved", "rejected"],
+  code_purpose: ["verify_email", "reset_password"],
+  project_status: ["enviado_tutor", "devuelto", "devuelto_tutor", "validado_tutor", "publicado", "rechazado"],
+};
+
 let done = false;
 let pending: Promise<void> | null = null;
 
@@ -45,7 +52,14 @@ function errorCode(e: unknown): string | undefined {
 
 export function isSchemaError(e: unknown): boolean {
   const code = errorCode(e);
-  return code === "42703" || code === "42P01" || code === "42704" || code === "SCHEMA_INCOMPLETE";
+  return code === "42703" || code === "42P01" || code === "42704" || code === "0A000" || code === "SCHEMA_INCOMPLETE";
+}
+
+export interface UsersColumnInfo {
+  column: string;
+  type: string;
+  nullable: boolean;
+  hasDefault: boolean;
 }
 
 export interface SchemaStatus {
@@ -54,6 +68,12 @@ export interface SchemaStatus {
   missingTables: string[];
   missingColumns: string[];
   missingEnums: string[];
+  /** Columnas heredadas NOT NULL sin valor predeterminado que bloquean INSERT de cuentas. */
+  registrationBlockers: string[];
+  /** Tipos heredados incompatibles (p. ej. booleanos creados como texto/número). */
+  typeProblems: string[];
+  usersColumns: UsersColumnInfo[];
+  enumLabels: Record<string, string[]>;
   error?: string;
 }
 
@@ -70,15 +90,26 @@ export async function schemaStatus(): Promise<SchemaStatus> {
       SELECT table_name FROM information_schema.tables
       WHERE table_schema = 'public' AND table_name IN (${sql.join(REQUIRED_TABLES.map((t) => sql`${t}`), sql`, `)})
     `);
-    const columnsResult = await db.execute<{ table_name: string; column_name: string }>(sql`
-      SELECT table_name, column_name FROM information_schema.columns
+    const columnsResult = await db.execute<{
+      table_name: string;
+      column_name: string;
+      data_type: string;
+      udt_name: string;
+      is_nullable: string;
+      column_default: string | null;
+      is_identity: string;
+      is_generated: string;
+    }>(sql`
+      SELECT table_name, column_name, data_type, udt_name, is_nullable, column_default, is_identity, is_generated
+      FROM information_schema.columns
       WHERE table_schema = 'public' AND table_name IN (${sql.join(REQUIRED_TABLES.map((t) => sql`${t}`), sql`, `)})
     `);
-    const enumResult = await db.execute<{ enumlabel: string }>(sql`
-      SELECT e.enumlabel FROM pg_enum e
+    const enumsResult = await db.execute<{ typname: string; enumlabel: string }>(sql`
+      SELECT t.typname, e.enumlabel FROM pg_enum e
       JOIN pg_type t ON t.oid = e.enumtypid
       JOIN pg_namespace n ON n.oid = t.typnamespace
-      WHERE n.nspname = 'public' AND t.typname = 'project_status' AND e.enumlabel = 'devuelto_tutor'
+      WHERE n.nspname = 'public' AND t.typname IN (${sql.join(Object.keys(REQUIRED_ENUM_LABELS).map((t) => sql`${t}`), sql`, `)})
+      ORDER BY t.typname, e.enumsortorder
     `);
 
     const tables = new Set(tablesResult.rows.map((r) => r.table_name));
@@ -87,14 +118,72 @@ export async function schemaStatus(): Promise<SchemaStatus> {
     const missingColumns = REQUIRED_TABLES.flatMap((table) =>
       REQUIRED_COLUMNS[table].filter((column) => !columns.has(`${table}.${column}`)).map((column) => `${table}.${column}`)
     );
-    const missingEnums = enumResult.rows.length === 0 ? ["project_status.devuelto_tutor"] : [];
+
+    const enumLabels: Record<string, string[]> = {};
+    for (const row of enumsResult.rows) {
+      (enumLabels[row.typname] ??= []).push(row.enumlabel);
+    }
+    const missingEnums: string[] = [];
+    for (const [typname, labels] of Object.entries(REQUIRED_ENUM_LABELS)) {
+      for (const label of labels) {
+        if (!enumLabels[typname]?.includes(label)) missingEnums.push(`${typname}.${label}`);
+      }
+    }
+
+    const registrationBlockers = columnsResult.rows
+      .filter((c) => c.table_name === "users")
+      .filter((c) => !REQUIRED_COLUMNS.users.includes(c.column_name))
+      .filter((c) => c.is_nullable === "NO" && c.column_default === null && c.is_identity !== "YES" && c.is_generated === "NEVER")
+      .map((c) => c.column_name);
+
+    const usersColumns: UsersColumnInfo[] = columnsResult.rows
+      .filter((c) => c.table_name === "users")
+      .map((c) => ({
+        column: c.column_name,
+        type: c.data_type === "USER-DEFINED" ? c.udt_name : c.data_type,
+        nullable: c.is_nullable === "YES",
+        hasDefault: c.column_default !== null || c.is_identity === "YES",
+      }))
+      .sort((a, b) => a.column.localeCompare(b.column));
+
+    const typeProblems: string[] = [];
+    const byName = new Map(usersColumns.map((c) => [c.column, c]));
+    const isActive = byName.get("is_active");
+    if (isActive && isActive.type !== "boolean") {
+      typeProblems.push(`users.is_active debe ser boolean (es ${isActive.type})`);
+    }
+    const verified = byName.get("email_verified");
+    if (verified && verified.type !== "boolean") {
+      typeProblems.push(`users.email_verified debe ser boolean (es ${verified.type})`);
+    }
+    const idCol = byName.get("id");
+    if (idCol && !idCol.hasDefault) {
+      typeProblems.push("users.id no tiene valor predeterminado (los registros nuevos fallarían)");
+    }
+    const role = byName.get("role");
+    if (role && role.type !== "user_role" && !["character varying", "character", "text"].includes(role.type)) {
+      typeProblems.push(`users.role tiene un tipo inesperado (${role.type})`);
+    }
+    const approval = byName.get("approval_status");
+    if (approval && approval.type !== "user_approval_status" && !["character varying", "character", "text"].includes(approval.type)) {
+      typeProblems.push(`users.approval_status tiene un tipo inesperado (${approval.type})`);
+    }
 
     return {
-      ok: missingTables.length === 0 && missingColumns.length === 0 && missingEnums.length === 0,
+      ok:
+        missingTables.length === 0 &&
+        missingColumns.length === 0 &&
+        missingEnums.length === 0 &&
+        registrationBlockers.length === 0 &&
+        typeProblems.length === 0,
       host,
       missingTables,
       missingColumns,
       missingEnums,
+      registrationBlockers,
+      typeProblems,
+      usersColumns,
+      enumLabels,
     };
   } catch (e) {
     return {
@@ -103,6 +192,10 @@ export async function schemaStatus(): Promise<SchemaStatus> {
       missingTables: [...REQUIRED_TABLES],
       missingColumns: REQUIRED_TABLES.flatMap((table) => REQUIRED_COLUMNS[table].map((column) => `${table}.${column}`)),
       missingEnums: ["project_status.devuelto_tutor"],
+      registrationBlockers: [],
+      typeProblems: [],
+      usersColumns: [],
+      enumLabels: {},
       error: e instanceof Error ? e.message : "No se pudo consultar el esquema.",
     };
   }
@@ -116,7 +209,15 @@ export async function ensureSchema(force = false): Promise<void> {
     const run = (async () => {
       const file = path.join(process.cwd(), "scripts", "production-schema.sql");
       const script = fs.readFileSync(file, "utf8");
-      await db.execute(sql.raw(script));
+      // Las dos partes se ejecutan en llamadas SEPARADAS: la PARTE 1 (enums)
+      // debe confirmarse antes de que la PARTE 2 use los valores nuevos.
+      // Enviarlo todo junto en una sola llamada provoca 55P04
+      // ("unsafe use of new value") en algunas rutas de ejecución.
+      const marker = "\n-- ==PART2==\n";
+      const at = script.indexOf(marker);
+      if (at === -1) throw new Error("Marcador -- ==PART2== ausente en production-schema.sql.");
+      await pool.query(script.slice(0, at));
+      await pool.query(script.slice(at + marker.length));
 
       const status = await schemaStatus();
       if (!status.ok) {
@@ -124,6 +225,8 @@ export async function ensureSchema(force = false): Promise<void> {
           ...status.missingTables.map((t) => `tabla ${t}`),
           ...status.missingColumns,
           ...status.missingEnums,
+          ...status.registrationBlockers.map((c) => `columna heredada NOT NULL users.${c}`),
+          ...status.typeProblems,
         ].join(", ");
         const error = new Error(`La migración terminó, pero el esquema sigue incompleto: ${details || status.error || "desconocido"}`);
         (error as Error & { code?: string }).code = "SCHEMA_INCOMPLETE";

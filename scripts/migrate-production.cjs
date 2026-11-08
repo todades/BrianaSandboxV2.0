@@ -70,15 +70,46 @@ async function migrateDatabase(connectionString) {
   const db = drizzle(client);
   try {
     // SET normal (no startup parameter): compatible con Neon pooled.
-    await db.execute(sql.raw("SET search_path TO public"));
-    await db.execute(sql.raw(sqlScript));
+    await client.query("SET search_path TO public");
+    // Dos llamadas separadas: la PARTE 1 (enums) se confirma antes de que la
+    // PARTE 2 use los valores nuevos (evita error 55P04 "unsafe use of new value").
+    const marker = "\n-- ==PART2==\n";
+    const at = sqlScript.indexOf(marker);
+    if (at === -1) throw new Error("Marcador -- ==PART2== ausente en production-schema.sql.");
+    await client.query(sqlScript.slice(0, at));
+    await client.query(sqlScript.slice(at + marker.length));
     const check = await db.execute(sql.raw(
-      "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='users' AND column_name IN ('name','email','password_hash','is_active','email_verified','approval_status')"
+      "SELECT column_name, data_type, column_default FROM information_schema.columns WHERE table_schema='public' AND table_name='users'"
     ));
-    const present = new Set(check.rows.map((r) => r.column_name));
-    const missing = ["name", "email", "password_hash", "is_active", "email_verified", "approval_status"].filter((c) => !present.has(c));
-    if (missing.length) {
-      const error = new Error(`La migración terminó pero faltan columnas en users: ${missing.join(", ")}`);
+    const byName = new Map(check.rows.map((r) => [r.column_name, r]));
+    const problems = [];
+    for (const c of ["name", "email", "password_hash", "is_active", "email_verified", "approval_status"]) {
+      if (!byName.has(c)) problems.push(`falta users.${c}`);
+    }
+    for (const c of ["is_active", "email_verified"]) {
+      const row = byName.get(c);
+      if (row && row.data_type !== "boolean") problems.push(`users.${c} debe ser boolean (es ${row.data_type})`);
+    }
+    const idCol = byName.get("id");
+    if (idCol && !idCol.column_default) problems.push("users.id sin valor predeterminado");
+    const labels = await db.execute(sql.raw(
+      "SELECT t.typname, e.enumlabel FROM pg_enum e JOIN pg_type t ON t.oid=e.enumtypid JOIN pg_namespace n ON n.oid=t.typnamespace " +
+      "WHERE n.nspname='public' AND t.typname IN ('user_role','user_approval_status','code_purpose','project_status')"
+    ));
+    const have = new Set(labels.rows.map((r) => `${r.typname}.${r.enumlabel}`));
+    const want = {
+      user_role: ["estudiante", "tutor", "administrador"],
+      user_approval_status: ["pending", "approved", "rejected"],
+      code_purpose: ["verify_email", "reset_password"],
+      project_status: ["enviado_tutor", "devuelto", "devuelto_tutor", "validado_tutor", "publicado", "rechazado"],
+    };
+    for (const [typ, list] of Object.entries(want)) {
+      for (const label of list) {
+        if (!have.has(`${typ}.${label}`)) problems.push(`falta etiqueta ${typ}.${label}`);
+      }
+    }
+    if (problems.length) {
+      const error = new Error(`La migración terminó pero el esquema sigue incompleto: ${problems.join("; ")}`);
       error.code = "SCHEMA_INCOMPLETE";
       throw error;
     }

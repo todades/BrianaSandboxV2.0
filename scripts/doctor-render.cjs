@@ -122,15 +122,37 @@ async function main() {
       await client.connect();
       ok("Conexión PostgreSQL establecida.");
       const cols = await db.execute(sql.raw(
-        "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='users' AND column_name IN ('name','email','password_hash','is_active','email_verified','approval_status','verified_at')"
+        "SELECT column_name, data_type, column_default FROM information_schema.columns WHERE table_schema='public' AND table_name='users'"
       ));
-      const enumRow = await db.execute(sql.raw(
-        "SELECT 1 FROM pg_enum e JOIN pg_type t ON t.oid=e.enumtypid JOIN pg_namespace n ON n.oid=t.typnamespace WHERE n.nspname='public' AND t.typname='project_status' AND e.enumlabel='devuelto_tutor' LIMIT 1"
+      const labels = await db.execute(sql.raw(
+        "SELECT t.typname, e.enumlabel FROM pg_enum e JOIN pg_type t ON t.oid=e.enumtypid JOIN pg_namespace n ON n.oid=t.typnamespace " +
+        "WHERE n.nspname='public' AND t.typname IN ('user_role','user_approval_status','code_purpose','project_status')"
       ));
-      const names = new Set(cols.rows.map((r) => r.column_name));
-      const missing = ["name", "email", "password_hash", "is_active", "email_verified", "approval_status", "verified_at"].filter((c) => !names.has(c));
-      if (missing.length || enumRow.rowCount === 0) {
-        bad(`Esquema desactualizado: falta ${[...missing, enumRow.rowCount === 0 ? "project_status.devuelto_tutor" : null].filter(Boolean).join(", ")}.`);
+      const byName = new Map(cols.rows.map((r) => [r.column_name, r]));
+      const missing = ["name", "email", "password_hash", "is_active", "email_verified", "approval_status", "verified_at"].filter((c) => !byName.has(c));
+      const have = new Set(labels.rows.map((r) => `${r.typname}.${r.enumlabel}`));
+      const wantLabels = {
+        user_role: ["estudiante", "tutor", "administrador"],
+        user_approval_status: ["pending", "approved", "rejected"],
+        code_purpose: ["verify_email", "reset_password"],
+        project_status: ["enviado_tutor", "devuelto", "devuelto_tutor", "validado_tutor", "publicado", "rechazado"],
+      };
+      const missingLabels = [];
+      for (const [typ, list] of Object.entries(wantLabels)) {
+        for (const label of list) {
+          if (!have.has(`${typ}.${label}`)) missingLabels.push(`${typ}.${label}`);
+        }
+      }
+      const typeProblems = [];
+      for (const c of ["is_active", "email_verified"]) {
+        const row = byName.get(c);
+        if (row && row.data_type !== "boolean") typeProblems.push(`${c} es ${row.data_type}, debe ser boolean`);
+      }
+      const idCol = byName.get("id");
+      if (idCol && !idCol.column_default) typeProblems.push("id sin valor predeterminado");
+      const allMissing = [...missing, ...missingLabels, ...typeProblems];
+      if (allMissing.length) {
+        bad(`Esquema desactualizado: falta ${allMissing.join(", ")}.`);
         if (process.argv.includes("--fix")) {
           console.log("Aplicando migración idempotente...");
           await migrateDatabase(raw);
@@ -139,7 +161,7 @@ async function main() {
           console.log("  Solución: node scripts/migrate-production.cjs");
         }
       } else {
-        ok("Esquema mínimo de BRIANA presente (users.name/email/password_hash/is_active y devuelto_tutor).");
+        ok("Esquema mínimo de BRIANA presente (columnas users, tipos boolean, secuencia id y etiquetas de enums).");
       }
     } catch (error) {
       bad(`No se pudo conectar/consultar PostgreSQL (${error.code || "sin código"}): ${error.message}`);

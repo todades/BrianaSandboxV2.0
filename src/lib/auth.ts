@@ -29,16 +29,18 @@ export class HttpError extends Error {
   }
 }
 
-function postgresCode(e: unknown): string | undefined {
-  if (!e || typeof e !== "object") return undefined;
-  const direct = (e as { code?: unknown }).code;
-  if (typeof direct === "string") return direct;
-  const cause = (e as { cause?: unknown }).cause;
-  if (cause && typeof cause === "object") {
-    const nested = (cause as { code?: unknown }).code;
-    if (typeof nested === "string") return nested;
+function postgresInfo(e: unknown): { code?: string; table?: string; column?: string; constraint?: string } {
+  const out: { code?: string; table?: string; column?: string; constraint?: string } = {};
+  let current: unknown = e;
+  for (let i = 0; i < 6 && current && typeof current === "object"; i += 1) {
+    const o = current as Record<string, unknown>;
+    if (!out.code && typeof o.code === "string") out.code = o.code;
+    for (const key of ["table", "column", "constraint"] as const) {
+      if (!out[key] && typeof o[key] === "string") out[key] = o[key] as string;
+    }
+    current = o.cause;
   }
-  return undefined;
+  return out;
 }
 
 export function handleError(e: unknown): Response {
@@ -47,9 +49,20 @@ export function handleError(e: unknown): Response {
   }
   console.error("[BRIANA] Error no controlado:", e);
 
-  const code = postgresCode(e);
-  // 42703 columna inexistente · 42P01 tabla inexistente · 42704 tipo/objeto inexistente
-  if (code === "42703" || code === "42P01" || code === "42704" || code === "SCHEMA_INCOMPLETE") {
+  const info = postgresInfo(e);
+  const code = info.code;
+  if (code === "23505") {
+    return Response.json({ error: "Ya existe una cuenta con esos datos. Comprueba el correo y vuelve a intentarlo." }, { status: 409 });
+  }
+  if (code === "23502") {
+    return Response.json({
+      error: `La base antigua exige el campo «${info.column ?? "desconocido"}», que no existe en el formulario actual. Actualiza el esquema y vuelve a intentarlo.`,
+      schemaOutdated: true,
+      missingColumn: info.column ?? null,
+    }, { status: 503 });
+  }
+  // 42703 columna inexistente · 42P01 tabla inexistente · 42704 tipo/objeto inexistente · 0A000 DDL no soportado
+  if (code === "42703" || code === "42P01" || code === "42704" || code === "0A000" || code === "SCHEMA_INCOMPLETE") {
     return Response.json(
       {
         error:
@@ -58,6 +71,42 @@ export function handleError(e: unknown): Response {
       },
       { status: 503 }
     );
+  }
+  if (code === "22P02") {
+    return Response.json({
+      error: "La base de datos rechazó un valor porque una lista (estado, rol o aprobación) está desactualizada. Vuelve a desplegar para actualizar el esquema.",
+      schemaOutdated: true,
+      pgCode: code,
+      table: info.table ?? null,
+      column: info.column ?? null,
+    }, { status: 503 });
+  }
+  if (code === "42804") {
+    return Response.json({
+      error: `Tipo de dato incompatible en la base de datos${info.table ? ` (tabla ${info.table}` : ""}${info.column ? `, columna ${info.column}` : ""}${info.table ? ")" : ""}. Vuelve a desplegar para normalizar el esquema.`,
+      schemaOutdated: true,
+      pgCode: code,
+      table: info.table ?? null,
+      column: info.column ?? null,
+    }, { status: 503 });
+  }
+  if (code === "23503") {
+    return Response.json({
+      error: `Referencia inválida en la base de datos${info.constraint ? ` (restricción ${info.constraint})` : ""}. Verifica los datos seleccionados.`,
+      pgCode: code,
+    }, { status: 400 });
+  }
+  if (code === "23514") {
+    return Response.json({
+      error: `Los datos no cumplen una regla de la base de datos${info.constraint ? ` (restricción ${info.constraint})` : ""}. Contacta al administrador para revisar reglas heredadas.`,
+      pgCode: code,
+    }, { status: 400 });
+  }
+  if (code === "25P02" || code === "57P01") {
+    return Response.json({
+      error: "La conexión con la base de datos se interrumpió en medio de la operación. Inténtalo de nuevo en unos segundos.",
+      retryable: true,
+    }, { status: 503 });
   }
 
   return Response.json(

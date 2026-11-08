@@ -3,55 +3,103 @@
 -- Se puede ejecutar varias veces sin borrar datos.
 -- Uso: node scripts/migrate-production.cjs (o pegar en el SQL Editor de Neon)
 -- ============================================================================
+
+-- ============================================================================
+-- PARTE 1 · Tipos enumerados (fuera de transacción explícita).
+-- Cada sentencia se confirma por separado: compatible con Neon pooled y con
+-- ALTER TYPE ... ADD VALUE. Idempotente y tolerante a ejecuciones simultáneas.
+-- ============================================================================
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace WHERE n.nspname = 'public' AND t.typname = 'user_role') THEN
+    BEGIN
+      CREATE TYPE public.user_role AS ENUM ('estudiante', 'tutor', 'administrador');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+  END IF;
+END
+$$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace WHERE n.nspname = 'public' AND t.typname = 'project_status') THEN
+    BEGIN
+      CREATE TYPE public.project_status AS ENUM (
+        'enviado_tutor', 'devuelto', 'devuelto_tutor', 'validado_tutor', 'publicado', 'rechazado'
+      );
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+  END IF;
+END
+$$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace WHERE n.nspname = 'public' AND t.typname = 'code_purpose') THEN
+    BEGIN
+      CREATE TYPE public.code_purpose AS ENUM ('verify_email', 'reset_password');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+  END IF;
+END
+$$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace WHERE n.nspname = 'public' AND t.typname = 'user_approval_status') THEN
+    BEGIN
+      CREATE TYPE public.user_approval_status AS ENUM ('pending', 'approved', 'rejected');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+  END IF;
+END
+$$;
+
+-- Asegura todas las etiquetas necesarias (por si un tipo se creó a mano incompleto).
+DO $$
+DECLARE
+  want text[] := ARRAY[
+    'user_role|estudiante', 'user_role|tutor', 'user_role|administrador',
+    'user_approval_status|pending', 'user_approval_status|approved', 'user_approval_status|rejected',
+    'code_purpose|verify_email', 'code_purpose|reset_password',
+    'project_status|enviado_tutor', 'project_status|devuelto', 'project_status|devuelto_tutor',
+    'project_status|validado_tutor', 'project_status|publicado', 'project_status|rechazado'
+  ];
+  item text;
+  tname text;
+  lbl text;
+BEGIN
+  FOREACH item IN ARRAY want LOOP
+    tname := split_part(item, '|', 1);
+    lbl := split_part(item, '|', 2);
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_enum e
+      JOIN pg_type t ON t.oid = e.enumtypid
+      JOIN pg_namespace n ON n.oid = t.typnamespace
+      WHERE n.nspname = 'public' AND t.typname = tname AND e.enumlabel = lbl
+    ) THEN
+      BEGIN
+        EXECUTE format('ALTER TYPE public.%I ADD VALUE %L', tname, lbl);
+      EXCEPTION WHEN duplicate_object THEN NULL;
+      END;
+    END IF;
+  END LOOP;
+END
+$$;
+
+-- ==PART2==
+-- ============================================================================
+-- PARTE 2 · Tablas, columnas, índices y datos (transaccional).
+-- Se ejecuta en una llamada SEPARADA después de la PARTE 1, para que los
+-- valores de enum recién añadidos ya estén confirmados al usarlos (evita 55P04).
+-- ============================================================================
 BEGIN;
 
 SET LOCAL search_path TO public;
 
 SELECT pg_advisory_xact_lock(hashtext('briana:schema-migration'));
 
--- ---------------------------------------------------------------------------
--- Tipos enumerados
--- ---------------------------------------------------------------------------
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid=t.typnamespace WHERE n.nspname='public' AND t.typname = 'user_role') THEN
-    CREATE TYPE public.user_role AS ENUM ('estudiante', 'tutor', 'administrador');
-  END IF;
-END
-$$;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid=t.typnamespace WHERE n.nspname='public' AND t.typname = 'project_status') THEN
-    CREATE TYPE public.project_status AS ENUM (
-      'enviado_tutor', 'devuelto', 'devuelto_tutor', 'validado_tutor', 'publicado', 'rechazado'
-    );
-  ELSIF NOT EXISTS (
-    SELECT 1 FROM pg_enum e
-    JOIN pg_type t ON t.oid = e.enumtypid
-    JOIN pg_namespace n ON n.oid=t.typnamespace
-    WHERE n.nspname='public' AND t.typname = 'project_status' AND e.enumlabel = 'devuelto_tutor'
-  ) THEN
-    ALTER TYPE public.project_status ADD VALUE 'devuelto_tutor';
-  END IF;
-END
-$$;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid=t.typnamespace WHERE n.nspname='public' AND t.typname = 'code_purpose') THEN
-    CREATE TYPE public.code_purpose AS ENUM ('verify_email', 'reset_password');
-  END IF;
-END
-$$;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid=t.typnamespace WHERE n.nspname='public' AND t.typname = 'user_approval_status') THEN
-    CREATE TYPE public.user_approval_status AS ENUM ('pending', 'approved', 'rejected');
-  END IF;
-END
-$$;
+-- Tipos enumerados: ver PARTE 1 (se crean fuera de la transacción explícita).
 
 -- ---------------------------------------------------------------------------
 -- Users: crea la tabla si falta y repara tablas antiguas sin borrar filas
@@ -84,6 +132,87 @@ ALTER TABLE public.users ADD COLUMN IF NOT EXISTS email_verified boolean NOT NUL
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT true;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS approval_status public.user_approval_status NOT NULL DEFAULT 'approved';
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS verified_at timestamptz;
+
+-- Normaliza tipos heredados de ediciones manuales (sin borrar filas).
+-- 1) users.id sin secuencia (tablas recreadas a mano): restaura autoincremento.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'id'
+      AND data_type IN ('integer', 'bigint', 'smallint') AND column_default IS NULL
+  ) THEN
+    CREATE SEQUENCE IF NOT EXISTS public.users_id_briana_seq;
+    ALTER TABLE public.users ALTER COLUMN id SET DEFAULT nextval('public.users_id_briana_seq');
+    PERFORM setval('public.users_id_briana_seq', COALESCE((SELECT max(id) FROM public.users), 0) + 1, false);
+  END IF;
+END
+$$;
+
+-- 2) Booleanos heredados con otro tipo (texto/número) -> boolean, conservando el significado.
+DO $$
+DECLARE
+  col text;
+  ctype text;
+  fallback_text text;
+BEGIN
+  FOREACH col IN ARRAY ARRAY['is_active', 'email_verified'] LOOP
+    SELECT data_type INTO ctype FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'users' AND column_name = col;
+    IF ctype IS NOT NULL AND ctype <> 'boolean' THEN
+      fallback_text := CASE WHEN col = 'is_active' THEN 'true' ELSE 'false' END;
+      EXECUTE format('ALTER TABLE public.users ALTER COLUMN %I DROP DEFAULT', col);
+      EXECUTE
+        'ALTER TABLE public.users ALTER COLUMN ' || quote_ident(col) || ' TYPE boolean USING (' ||
+        'CASE WHEN ' || quote_ident(col) || ' IS NULL THEN ' || fallback_text ||
+        ' WHEN pg_typeof(' || quote_ident(col) || ')::text IN (''smallint'',''integer'',''bigint'',''numeric'',''real'',''double precision'')' ||
+        ' THEN (CASE WHEN (' || quote_ident(col) || ')::text ~ ''^-?[0-9]+(\.[0-9]+)?$'' THEN ((' || quote_ident(col) || ')::text::numeric <> 0) ELSE ' || fallback_text || ' END)' ||
+        ' WHEN lower((' || quote_ident(col) || ')::text) IN (''t'',''true'',''1'',''y'',''yes'',''si'',''sí'',''s'',''activo'',''activa'',''active'',''enabled'',''on'') THEN true' ||
+        ' WHEN lower((' || quote_ident(col) || ')::text) IN (''f'',''false'',''0'',''n'',''no'',''inactivo'',''inactiva'',''disabled'',''off'','''') THEN false' ||
+        ' ELSE ' || fallback_text || ' END)';
+      EXECUTE format('ALTER TABLE public.users ALTER COLUMN %I SET DEFAULT %s', col, fallback_text);
+      EXECUTE format('ALTER TABLE public.users ALTER COLUMN %I SET NOT NULL', col);
+    END IF;
+  END LOOP;
+END
+$$;
+
+-- 3) role / approval_status creados como texto -> convierte al enum conservando valores válidos.
+DO $$
+DECLARE ctype text;
+BEGIN
+  SELECT data_type INTO ctype FROM information_schema.columns
+  WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'role';
+  IF ctype IN ('character varying', 'character', 'text') THEN
+    UPDATE public.users SET role = 'estudiante'
+    WHERE role IS NULL OR lower(btrim(role::text)) NOT IN ('estudiante', 'tutor', 'administrador');
+    UPDATE public.users SET role = lower(btrim(role::text))
+    WHERE role::text IS DISTINCT FROM lower(btrim(role::text));
+    ALTER TABLE public.users ALTER COLUMN role DROP DEFAULT;
+    ALTER TABLE public.users ALTER COLUMN role TYPE public.user_role USING (role::text::public.user_role);
+    ALTER TABLE public.users ALTER COLUMN role SET DEFAULT 'estudiante';
+    ALTER TABLE public.users ALTER COLUMN role SET NOT NULL;
+  END IF;
+END
+$$;
+
+DO $$
+DECLARE ctype text;
+BEGIN
+  SELECT data_type INTO ctype FROM information_schema.columns
+  WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'approval_status';
+  IF ctype IN ('character varying', 'character', 'text') THEN
+    UPDATE public.users SET approval_status = 'approved'
+    WHERE approval_status IS NULL OR lower(btrim(approval_status::text)) NOT IN ('pending', 'approved', 'rejected');
+    UPDATE public.users SET approval_status = lower(btrim(approval_status::text))
+    WHERE approval_status::text IS DISTINCT FROM lower(btrim(approval_status::text));
+    ALTER TABLE public.users ALTER COLUMN approval_status DROP DEFAULT;
+    ALTER TABLE public.users ALTER COLUMN approval_status TYPE public.user_approval_status USING (approval_status::text::public.user_approval_status);
+    ALTER TABLE public.users ALTER COLUMN approval_status SET DEFAULT 'approved';
+    ALTER TABLE public.users ALTER COLUMN approval_status SET NOT NULL;
+  END IF;
+END
+$$;
 
 -- Campos opcionales en el diseño actual: evita errores 500 en bases antiguas
 -- donde cedula/teléfono/trayecto quedaron como NOT NULL.
