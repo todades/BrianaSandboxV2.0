@@ -23,7 +23,7 @@ import {
   Clock,
   Wand2,
 } from "lucide-react";
-import { ApiError, postJson } from "@/lib/api-client";
+import { api, ApiError, postJson } from "@/lib/api-client";
 import { DEFAULT_ADMIN_EMAIL, TRAYECTOS } from "@/lib/constants";
 import type { CodeDispatch, UserDTO } from "@/lib/types";
 import { isValidEmailAddress, VENEZUELAN_MOBILE_HTML_PATTERN, VENEZUELAN_MOBILE_PREFIXES } from "@/lib/validation";
@@ -405,9 +405,20 @@ export function AuthView({ onAuth }: { onAuth: (user: UserDTO) => void }) {
     setAdminMode(true);
     setEmail(DEFAULT_ADMIN_EMAIL);
     setPassword("");
-    setInfo(
-      "Modo administrativo: el sistema cuenta con un único administrador predeterminado. Ingresa la contraseña maestra definida en el servidor (.env)."
-    );
+    setInfo("Consultando el correo administrativo configurado en el servidor...");
+    void api<{ admin?: { email?: string; defaultPasswordActive?: boolean; passwordSource?: string } }>("/api/health")
+      .then((health) => {
+        const adminEmail = health.admin?.email || DEFAULT_ADMIN_EMAIL;
+        setEmail(adminEmail);
+        if (health.admin?.defaultPasswordActive) {
+          setInfo(`Administrador configurado: ${adminEmail}. La contraseña por defecto está activa; cámbiala en producción con ADMIN_PASSWORD.`);
+        } else {
+          setInfo(`Administrador configurado: ${adminEmail}. Usa la contraseña de la variable ADMIN_PASSWORD en Render → Environment.`);
+        }
+      })
+      .catch(() => {
+        setInfo("Modo administrativo: ingresa el correo ADMIN_EMAIL y la contraseña ADMIN_PASSWORD configurados en el servidor.");
+      });
   }
 
   /* ---------------- Subcomponentes de campo (sin iconos internos) ---------------- */

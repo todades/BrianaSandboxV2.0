@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { createSession, handleError, HttpError, toUserDTO, verifyPassword } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
-import { ensureSystemAccounts } from "@/lib/seed";
+import { ensureSystemAccounts, getAdminCredentials } from "@/lib/seed";
 import { sendCode } from "@/lib/codes";
 import type { CodeDispatch } from "@/lib/types";
 import { ensureSchema, isSchemaError } from "@/lib/schema-guard";
@@ -16,7 +16,11 @@ export async function POST(req: Request) {
       return await handleLogin(req);
     } catch (e) {
       if (isSchemaError(e) && attempt === 0) {
-        await ensureSchema(true);
+        try {
+          await ensureSchema(true);
+        } catch (repairError) {
+          return handleError(repairError);
+        }
         continue;
       }
       return handleError(e);
@@ -35,7 +39,12 @@ async function handleLogin(req: Request) {
   // Garantiza la existencia del administrador único antes de autenticar.
   await ensureSystemAccounts();
 
-  const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  let [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  if ((!user || !verifyPassword(password, user.passwordHash)) && email === getAdminCredentials().email) {
+    // Si Render cambió ADMIN_EMAIL/ADMIN_PASSWORD, sincroniza una vez antes de rechazar.
+    await ensureSystemAccounts(true);
+    [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  }
   if (!user || !verifyPassword(password, user.passwordHash)) {
     await logAudit({ user: null, action: "LOGIN_FALLIDO", details: { email } });
     throw new HttpError(401, "Credenciales incorrectas.");

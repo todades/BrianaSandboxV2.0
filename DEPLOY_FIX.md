@@ -255,3 +255,57 @@ Respuesta esperada:
 - `schema.error` → muestra el motivo exacto (permisos, SSL, etc.) sin contraseñas.
 
 La auto-reparación es idempotente: no borra datos ni duplica tablas.
+
+---
+
+## 12. Caso real detectado: faltan `users.name`, `users.email`, `users.password_hash`
+
+Si `/api/health` devuelve:
+
+```json
+"missingColumns": ["users.name", "users.email", "users.password_hash"]
+```
+
+la tabla `users` existía con un diseño antiguo. La migración actual ahora:
+
+- añade `name`, `email`, `password_hash` y el resto de columnas requeridas;
+- recupera datos desde `nombre`, `correo`, `password` / `clave` cuando existen;
+- rellena correos únicos temporales si no hay correo recuperable;
+- deja `password_hash` vacío cuando la contraseña antigua no era un hash scrypt compatible;
+- verifica el esquema después de migrar y no marca la reparación como terminada si aún falta algo.
+
+Después de redesplegar, `/api/health` debe mostrar `schema.ok: true`. El administrador se sincroniza con `ADMIN_EMAIL` / `ADMIN_PASSWORD`. Los usuarios antiguos sin hash compatible deben usar recuperación de contraseña.
+
+---
+
+## 13. Caso real: “Credenciales incorrectas” con `administrador@gmail.com`
+
+Si el esquema ya está bien (`schema.ok: true`, `adminReady: true`) pero el login
+dice **Credenciales incorrectas**, el correo/clave no coincide con las variables
+de Render.
+
+- El correo válido es **`ADMIN_EMAIL`** en Render → Environment.
+- La contraseña válida es **`ADMIN_PASSWORD`** en Render → Environment.
+- `Briana#Admin2025` solo sirve si no existe `ADMIN_PASSWORD` o si esa variable
+  contiene exactamente ese valor.
+
+La versión actual expone en `/api/health` un bloque seguro:
+
+```json
+"admin": {
+  "email": "correo-configurado",
+  "passwordSource": "ADMIN_PASSWORD",
+  "defaultPasswordActive": false
+}
+```
+
+No muestra la contraseña. El botón **Acceso administrativo** consulta ese correo
+y lo precarga. Si quieres entrar con `administrador@gmail.com`, configura:
+
+```text
+ADMIN_EMAIL=administrador@gmail.com
+ADMIN_PASSWORD=una_clave_nueva_y_segura
+```
+
+Guarda y redespliega. BRIANA degrada al administrador anterior y sincroniza el
+nuevo en una transacción.

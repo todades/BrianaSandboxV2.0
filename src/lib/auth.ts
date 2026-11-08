@@ -49,7 +49,7 @@ export function handleError(e: unknown): Response {
 
   const code = postgresCode(e);
   // 42703 columna inexistente · 42P01 tabla inexistente · 42704 tipo/objeto inexistente
-  if (code === "42703" || code === "42P01" || code === "42704") {
+  if (code === "42703" || code === "42P01" || code === "42704" || code === "SCHEMA_INCOMPLETE") {
     return Response.json(
       {
         error:

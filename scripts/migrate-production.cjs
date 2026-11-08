@@ -10,6 +10,8 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { Client } = require("pg");
+const { drizzle } = require("drizzle-orm/node-postgres");
+const { sql } = require("drizzle-orm");
 
 const PLACEHOLDER_DATABASE_HOSTS = new Set([
   "base",
@@ -58,17 +60,28 @@ function sslFor(connectionString) {
 async function migrateDatabase(connectionString) {
   if (!connectionString) throw new Error("DATABASE_URL no está definida.");
   const sqlPath = path.join(__dirname, "production-schema.sql");
-  const sql = fs.readFileSync(sqlPath, "utf8");
+  const sqlScript = fs.readFileSync(sqlPath, "utf8");
   const client = new Client({
     connectionString,
     ssl: sslFor(connectionString),
     connectionTimeoutMillis: 15000,
   });
   await client.connect();
+  const db = drizzle(client);
   try {
     // SET normal (no startup parameter): compatible con Neon pooled.
-    await client.query("SET search_path TO public");
-    await client.query(sql);
+    await db.execute(sql.raw("SET search_path TO public"));
+    await db.execute(sql.raw(sqlScript));
+    const check = await db.execute(sql.raw(
+      "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='users' AND column_name IN ('name','email','password_hash','is_active','email_verified')"
+    ));
+    const present = new Set(check.rows.map((r) => r.column_name));
+    const missing = ["name", "email", "password_hash", "is_active", "email_verified"].filter((c) => !present.has(c));
+    if (missing.length) {
+      const error = new Error(`La migración terminó pero faltan columnas en users: ${missing.join(", ")}`);
+      error.code = "SCHEMA_INCOMPLETE";
+      throw error;
+    }
   } finally {
     await client.end();
   }
