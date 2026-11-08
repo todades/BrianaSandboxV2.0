@@ -90,6 +90,28 @@ ALTER TABLE public.users ADD COLUMN IF NOT EXISTS verified_at timestamptz;
 ALTER TABLE public.users ALTER COLUMN cedula DROP NOT NULL;
 ALTER TABLE public.users ALTER COLUMN phone DROP NOT NULL;
 ALTER TABLE public.users ALTER COLUMN trayecto DROP NOT NULL;
+
+-- Esquemas antiguos pueden conservar otros campos obligatorios sin default
+-- (username, activo, tipo_cuenta, etc.) que el formulario nuevo no envía.
+-- Solo se relajan esas columnas adicionales; jamás las columnas actuales.
+DO $$
+DECLARE legacy_column record;
+BEGIN
+  FOR legacy_column IN
+    SELECT column_name FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'users'
+      AND is_nullable = 'NO' AND column_default IS NULL
+      AND is_identity = 'NO' AND is_generated = 'NEVER'
+      AND column_name NOT IN (
+        'id','name','email','password_hash','role','cedula','phone','trayecto',
+        'email_verified','is_active','approval_status','verified_at','created_at'
+      )
+  LOOP
+    EXECUTE format('ALTER TABLE public.users ALTER COLUMN %I DROP NOT NULL', legacy_column.column_name);
+  END LOOP;
+END
+$$;
+
 UPDATE public.users SET approval_status = 'approved' WHERE approval_status IS NULL;
 ALTER TABLE public.users ALTER COLUMN approval_status SET DEFAULT 'approved';
 ALTER TABLE public.users ALTER COLUMN approval_status SET NOT NULL;

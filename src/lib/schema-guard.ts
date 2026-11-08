@@ -54,6 +54,8 @@ export interface SchemaStatus {
   missingTables: string[];
   missingColumns: string[];
   missingEnums: string[];
+  /** Columnas heredadas NOT NULL sin valor predeterminado que bloquean INSERT de cuentas. */
+  registrationBlockers: string[];
   error?: string;
 }
 
@@ -70,8 +72,16 @@ export async function schemaStatus(): Promise<SchemaStatus> {
       SELECT table_name FROM information_schema.tables
       WHERE table_schema = 'public' AND table_name IN (${sql.join(REQUIRED_TABLES.map((t) => sql`${t}`), sql`, `)})
     `);
-    const columnsResult = await db.execute<{ table_name: string; column_name: string }>(sql`
-      SELECT table_name, column_name FROM information_schema.columns
+    const columnsResult = await db.execute<{
+      table_name: string;
+      column_name: string;
+      is_nullable: string;
+      column_default: string | null;
+      is_identity: string;
+      is_generated: string;
+    }>(sql`
+      SELECT table_name, column_name, is_nullable, column_default, is_identity, is_generated
+      FROM information_schema.columns
       WHERE table_schema = 'public' AND table_name IN (${sql.join(REQUIRED_TABLES.map((t) => sql`${t}`), sql`, `)})
     `);
     const enumResult = await db.execute<{ enumlabel: string }>(sql`
@@ -88,13 +98,19 @@ export async function schemaStatus(): Promise<SchemaStatus> {
       REQUIRED_COLUMNS[table].filter((column) => !columns.has(`${table}.${column}`)).map((column) => `${table}.${column}`)
     );
     const missingEnums = enumResult.rows.length === 0 ? ["project_status.devuelto_tutor"] : [];
+    const registrationBlockers = columnsResult.rows
+      .filter((c) => c.table_name === "users")
+      .filter((c) => !REQUIRED_COLUMNS.users.includes(c.column_name))
+      .filter((c) => c.is_nullable === "NO" && c.column_default === null && c.is_identity !== "YES" && c.is_generated === "NEVER")
+      .map((c) => c.column_name);
 
     return {
-      ok: missingTables.length === 0 && missingColumns.length === 0 && missingEnums.length === 0,
+      ok: missingTables.length === 0 && missingColumns.length === 0 && missingEnums.length === 0 && registrationBlockers.length === 0,
       host,
       missingTables,
       missingColumns,
       missingEnums,
+      registrationBlockers,
     };
   } catch (e) {
     return {
@@ -103,6 +119,7 @@ export async function schemaStatus(): Promise<SchemaStatus> {
       missingTables: [...REQUIRED_TABLES],
       missingColumns: REQUIRED_TABLES.flatMap((table) => REQUIRED_COLUMNS[table].map((column) => `${table}.${column}`)),
       missingEnums: ["project_status.devuelto_tutor"],
+      registrationBlockers: [],
       error: e instanceof Error ? e.message : "No se pudo consultar el esquema.",
     };
   }

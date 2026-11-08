@@ -82,6 +82,14 @@ async function migrateDatabase(connectionString) {
       error.code = "SCHEMA_INCOMPLETE";
       throw error;
     }
+    const blockers = await db.execute(sql.raw(
+      "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='users' AND is_nullable='NO' AND column_default IS NULL AND is_identity='NO' AND is_generated='NEVER' AND column_name NOT IN ('id','name','email','password_hash','role','cedula','phone','trayecto','email_verified','is_active','approval_status','verified_at','created_at')"
+    ));
+    if (blockers.rows.length) {
+      const error = new Error(`Hay columnas heredadas obligatorias que bloquean el registro: ${blockers.rows.map((r) => r.column_name).join(", ")}`);
+      error.code = "SCHEMA_INCOMPLETE";
+      throw error;
+    }
   } finally {
     await client.end();
   }
