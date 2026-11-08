@@ -44,7 +44,8 @@ export function isSchemaError(e: unknown): boolean {
   return code === "42703" || code === "42P01" || code === "42704";
 }
 
-export async function ensureSchema(): Promise<void> {
+export async function ensureSchema(force = false): Promise<void> {
+  if (force) done = false;
   if (done) return;
   if (!pending) {
     const run = (async () => {

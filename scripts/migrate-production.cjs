@@ -62,6 +62,7 @@ async function migrateDatabase(connectionString) {
   const client = new Client({
     connectionString,
     ssl: sslFor(connectionString),
+    options: "-c search_path=public",
     connectionTimeoutMillis: 15000,
   });
   await client.connect();

@@ -5,6 +5,9 @@
 -- ============================================================================
 BEGIN;
 
+-- Trabajamos siempre sobre public, sin importar el search_path del editor/cliente.
+SET LOCAL search_path TO public;
+
 SELECT pg_advisory_xact_lock(hashtext('briana:schema-migration'));
 
 -- ---------------------------------------------------------------------------

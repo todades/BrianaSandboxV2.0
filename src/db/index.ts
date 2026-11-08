@@ -33,6 +33,8 @@ export const pool =
   new Pool({
     connectionString: DATABASE_URL,
     ssl: databaseSsl ? { rejectUnauthorized: process.env.DATABASE_SSL_STRICT === "true" } : undefined,
+    // Siempre el esquema public: evita leer tablas viejas en schemas "$user".
+    options: "-c search_path=public",
     max: Number(process.env.PG_POOL_MAX || 10),
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 10_000,
