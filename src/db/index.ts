@@ -33,12 +33,13 @@ export const pool =
   new Pool({
     connectionString: DATABASE_URL,
     ssl: databaseSsl ? { rejectUnauthorized: process.env.DATABASE_SSL_STRICT === "true" } : undefined,
-    // Siempre el esquema public: evita leer tablas viejas en schemas "$user".
-    options: "-c search_path=public",
     max: Number(process.env.PG_POOL_MAX || 10),
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 10_000,
   });
+
+// Nota: Neon pooled (PgBouncer) rechaza parámetros de arranque (`options`).
+// El search_path se fija con SET dentro de la migración, no al conectar.
 
 if (process.env.NODE_ENV !== "production") {
   globalForDb.__arenaNextJsPostgresqlPool = pool;

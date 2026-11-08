@@ -62,11 +62,12 @@ async function migrateDatabase(connectionString) {
   const client = new Client({
     connectionString,
     ssl: sslFor(connectionString),
-    options: "-c search_path=public",
     connectionTimeoutMillis: 15000,
   });
   await client.connect();
   try {
+    // SET normal (no startup parameter): compatible con Neon pooled.
+    await client.query("SET search_path TO public");
     await client.query(sql);
   } finally {
     await client.end();
