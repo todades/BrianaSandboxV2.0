@@ -361,3 +361,32 @@ migración en una sola llamada provocaba el error `55P04` de Postgres
 al arrancar. Si el registro sigue fallando, el mensaje indicará la tabla,
 columna o restricción exacta: pégalo tal cual para corregirlo.
 
+
+---
+
+## 16. Deploy que falla en arranque con `42P17` (functions in index predicate)
+
+**Síntoma en logs de Render:**
+
+```text
+[BRIANA] Intento 1/3 de actualización de esquema falló.
+[BRIANA] Código: 42P17 · Detalle: functions in index predicate must be marked IMMUTABLE
+```
+
+**Causa:** el script intentaba crear el índice parcial
+`users_single_administrator_idx ... WHERE role = 'administrador'`.
+Comparar una columna enum con un literal dentro del predicado de un índice
+usa una función no inmutable y Postgres moderno lo rechaza.
+
+**Corrección:** se eliminó esa creación del script. El administrador único se
+sigue garantizando de dos formas que no fallan:
+
+1. La migración degrada a `tutor` cualquier administrador distinto del más antiguo.
+2. `ensureSystemAccounts()` (src/lib/seed.ts) lo refuerza en cada arranque.
+
+Si tu base ya tiene ese índice creado de antes, se deja intacto (funciona bien);
+simplemente ya no se intenta crear de nuevo.
+
+**Qué hacer:** redesplega con el código actualizado
+(`briana-fuente-completa.zip`). La migración del arranque terminará y el
+servicio levantará.
