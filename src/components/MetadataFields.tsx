@@ -58,7 +58,7 @@ export function MetadataFields({
   tutors,
   disabled = false,
   showTutorAccount = true,
-  canChangeTutorAccount = false,
+  tutorAccountLocked = false,
   filesSection,
 }: {
   value: MetadataForm;
@@ -66,8 +66,7 @@ export function MetadataFields({
   tutors: TutorOption[];
   disabled?: boolean;
   showTutorAccount?: boolean;
-  /** Solo el estudiante puede elegir la cuenta del tutor al crear el proyecto. */
-  canChangeTutorAccount?: boolean;
+  tutorAccountLocked?: boolean;
   /** Contenido de la sección "Archivos Adjuntos" (solo en el Sandbox). */
   filesSection?: ReactNode;
 }) {
@@ -88,12 +87,15 @@ export function MetadataFields({
   );
   const filteredTutors = useMemo(() => {
     const q = tutorSearch.trim().toLocaleLowerCase("es");
-    if (!q) return tutors;
-    return tutors.filter((t) => `${t.name} ${t.email}`.toLocaleLowerCase("es").includes(q));
+    return tutors
+      .filter((t) => t.role !== "administrador")
+      .filter((t) => !q || `${t.name} ${t.email}`.toLocaleLowerCase("es").includes(q))
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" }));
   }, [tutors, tutorSearch]);
 
   function onTutorAccount(t: TutorOption) {
-    if (!canChangeTutorAccount || !t.isActive) return;
+    if (!t.isActive) return;
     onChange({ ...value, tutorId: String(t.id), tutorNombre: value.tutorNombre || t.name });
     setTutorSearch("");
     setTutorOpen(false);
@@ -233,34 +235,35 @@ export function MetadataFields({
           </Field>
         </div>
         {showTutorAccount && (
-          <Field label="Cuenta del Tutor que recibirá el proyecto" required hint={TUTOR_CUENTA_NOTA}>
+          <Field
+            label="Cuenta del Tutor que recibirá el proyecto"
+            required
+            hint={tutorAccountLocked ? "Cuenta asignada por el estudiante. No puede modificarse durante la revisión o corrección." : TUTOR_CUENTA_NOTA}
+          >
             <div className="relative">
               <input
                 className="input-base"
                 type="search"
-                value={tutorOpen ? tutorSearch : selectedTutor ? `${selectedTutor.name} (${selectedTutor.email})${selectedTutor.isActive ? "" : " — No disponible"}` : tutorSearch}
+                value={tutorOpen ? tutorSearch : selectedTutor ? `${selectedTutor.name} (${selectedTutor.email})${selectedTutor.isActive ? "" : " — No disponible"}` : value.tutorNombre || tutorSearch}
                 placeholder={SELECT_PLACEHOLDERS.tutorCuenta}
                 autoComplete="off"
-                disabled={disabled || !canChangeTutorAccount}
+                disabled={disabled || tutorAccountLocked}
                 role="combobox"
                 aria-haspopup="listbox"
                 aria-expanded={tutorOpen}
                 aria-controls="briana-tutor-options"
                 onFocus={() => {
-                  if (canChangeTutorAccount) {
-                    setTutorSearch("");
-                    setTutorOpen(true);
-                  }
+                  setTutorSearch("");
+                  setTutorOpen(true);
                 }}
                 onBlur={() => window.setTimeout(() => setTutorOpen(false), 120)}
                 onChange={(e) => {
-                  if (!canChangeTutorAccount) return;
                   setTutorSearch(e.target.value);
                   setTutorOpen(true);
                   if (value.tutorId) onChange({ ...value, tutorId: "" });
                 }}
               />
-              {tutorOpen && !disabled && (
+              {tutorOpen && !disabled && !tutorAccountLocked && (
                 <div
                   id="briana-tutor-options"
                   role="listbox"

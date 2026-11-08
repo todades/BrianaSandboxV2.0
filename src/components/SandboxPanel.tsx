@@ -222,6 +222,7 @@ export function SandboxPanel({
     setPlanillaErr(null);
     setExtraction(null);
     setError(null);
+    setSuccess(null);
     setMeta(emptyMetadata({ trayecto: user.trayecto || undefined }));
     if (pdfInputRef.current) pdfInputRef.current.value = "";
     if (planillaInputRef.current) planillaInputRef.current.value = "";
@@ -448,7 +449,7 @@ export function SandboxPanel({
           )}
         </div>
 
-        <MetadataFields value={meta} onChange={setMeta} tutors={tutors} disabled={sending} canChangeTutorAccount filesSection={filesSection} />
+        <MetadataFields value={meta} onChange={setMeta} tutors={tutors} disabled={sending} filesSection={filesSection} />
 
         <div className="mt-8 pt-5 border-t border-line flex flex-wrap gap-3 justify-between items-center">
           <div className="text-xs text-muted flex flex-wrap items-center gap-2">

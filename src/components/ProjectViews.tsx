@@ -183,7 +183,7 @@ export function ProjectDetailModal({
   // Capacidades según rol y estado (el administrador también puede ser el revisor destinatario).
   const caps = useMemo(() => {
     if (!project) {
-      return { canEdit: false, isReviewer: false, isAdminFinal: false, isTutorCorrection: false, isStudentFix: false };
+      return { canEdit: false, isReviewer: false, isAdminFinal: false, isTutorCorrection: false, isStudentFix: false, canReturnToStudent: false };
     }
     const isReviewer =
       (user.role === "tutor" || user.role === "administrador") &&
@@ -192,15 +192,20 @@ export function ProjectDetailModal({
     const isAdminFinal = user.role === "administrador" && project.status === "validado_tutor";
     const isTutorCorrection = user.role === "tutor" && project.tutorId === user.id && project.status === "devuelto_tutor";
     const isStudentFix = user.role === "estudiante" && project.studentId === user.id && project.status === "devuelto";
+    const canReturnToStudent =
+      user.role === "tutor" &&
+      project.tutorId === user.id &&
+      (project.status === "enviado_tutor" || project.status === "devuelto_tutor");
     return {
       canEdit: isReviewer || isAdminFinal || isTutorCorrection || isStudentFix,
       isReviewer,
       isAdminFinal,
       isTutorCorrection,
       isStudentFix,
+      canReturnToStudent,
     };
   }, [project, user]);
-  const { canEdit, isReviewer, isAdminFinal, isTutorCorrection, isStudentFix } = caps;
+  const { canEdit, isReviewer, isAdminFinal, isTutorCorrection, isStudentFix, canReturnToStudent } = caps;
 
   const canAttach =
     !!project &&
@@ -211,11 +216,16 @@ export function ProjectDetailModal({
   if (!project || !form) return null;
 
   async function act(action: string, withMetadata = true) {
-    if (!project) return;
-    if ((action === "validar" && isReviewer) || (action === "reenviar_admin" && isTutorCorrection)) {
-      const confirmed = window.confirm("¿Está seguro de enviar este proyecto al Administrador?");
-      if (!confirmed) return;
+    if (!project || busy) return;
+    if (["devolver", "devolver_tutor", "rechazar"].includes(action) && obs.trim().length < 5) {
+      setError(action === "devolver" ? "Escribe las correcciones que debe realizar el estudiante." : "Escribe las observaciones antes de continuar.");
+      return;
     }
+    if ((action === "validar" && isReviewer) || (action === "reenviar_admin" && isTutorCorrection)) {
+      if (!window.confirm("¿Está seguro de enviar este proyecto al Administrador?")) return;
+    }
+    if (action === "devolver" && !window.confirm("¿Enviar este proyecto al estudiante para que realice las correcciones?")) return;
+    if (action === "reenviar" && !window.confirm("¿Reenviar este proyecto corregido al tutor asignado?")) return;
     setBusy(action);
     setError(null);
     setOk(null);
@@ -246,7 +256,7 @@ export function ProjectDetailModal({
   }
 
   async function attachPlanilla(file: File) {
-    if (!project) return;
+    if (!project || user.role === "tutor") return;
     setBusy("planilla");
     setError(null);
     try {
@@ -281,13 +291,61 @@ export function ProjectDetailModal({
     }
   }
 
-  const needsObs = isReviewer || isAdminFinal || isTutorCorrection;
+  const needsObs = canEdit;
+  const actionFooter = (canEdit || user.role === "administrador") ? (
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      {canEdit && (
+        <SecondaryButton size="sm" icon={<Save size={14} />} loading={busy === "guardar"} disabled={busy !== null} onClick={() => act("guardar")}>
+          Guardar cambios
+        </SecondaryButton>
+      )}
+      {isStudentFix && (
+        <PrimaryButton size="sm" icon={<Send size={14} />} loading={busy === "reenviar"} disabled={busy !== null} onClick={() => act("reenviar")}>
+          Reenviar al tutor
+        </PrimaryButton>
+      )}
+      {canReturnToStudent && (
+        <SecondaryButton size="sm" tone="warning" icon={<Undo2 size={14} />} loading={busy === "devolver"} disabled={busy !== null} onClick={() => act("devolver")}>
+          Devolver al estudiante
+        </SecondaryButton>
+      )}
+      {isReviewer && (
+        <PrimaryButton size="sm" icon={<CheckCircle2 size={14} />} loading={busy === "validar"} disabled={busy !== null} onClick={() => act("validar")}>
+          Enviar al administrador
+        </PrimaryButton>
+      )}
+      {isTutorCorrection && (
+        <PrimaryButton size="sm" icon={<Send size={14} />} loading={busy === "reenviar_admin"} disabled={busy !== null} onClick={() => act("reenviar_admin")}>
+          Reenviar al administrador
+        </PrimaryButton>
+      )}
+      {isAdminFinal && (
+        <>
+          <SecondaryButton size="sm" tone="warning" icon={<Undo2 size={14} />} loading={busy === "devolver_tutor"} disabled={busy !== null} onClick={() => act("devolver_tutor")}>
+            Devolver al tutor
+          </SecondaryButton>
+          <SecondaryButton size="sm" tone="danger" icon={<XCircle size={14} />} loading={busy === "rechazar"} disabled={busy !== null} onClick={() => act("rechazar")}>
+            Rechazar
+          </SecondaryButton>
+          <PrimaryButton size="sm" icon={<CheckCircle2 size={14} />} loading={busy === "publicar"} disabled={busy !== null || !project.planilla} onClick={() => act("publicar")}>
+            {project.planilla ? "Publicar" : "Falta planilla"}
+          </PrimaryButton>
+        </>
+      )}
+      {user.role === "administrador" && (
+        <SecondaryButton size="sm" tone="danger" icon={<Trash2 size={14} />} loading={busy === "eliminar"} disabled={busy !== null} onClick={deleteProject}>
+          Eliminar
+        </SecondaryButton>
+      )}
+    </div>
+  ) : null;
 
   return (
     <Modal
       open
       wide
       onClose={onClose}
+      footer={actionFooter}
       title={
         <span className="flex items-center gap-2">
           <BookMarked size={18} className="text-cyan-500 flex-shrink-0" />
@@ -326,6 +384,9 @@ export function ProjectDetailModal({
           {!hideFiles && (
             <div className="card-flat p-4 space-y-2">
             <p className="text-[0.65rem] uppercase tracking-wider font-bold text-muted">Archivos</p>
+            {user.role === "tutor" && (
+              <p className="text-[0.7rem] text-muted2">Originales bloqueados: solo lectura y observaciones.</p>
+            )}
             {project.pdf ? (
               <div className="flex items-center justify-between gap-2 text-xs">
                 <span className="inline-flex items-center gap-1.5 text-ink truncate">
@@ -405,112 +466,44 @@ export function ProjectDetailModal({
             <h4 className="text-sm font-bold text-ink">Metadatos del proyecto</h4>
             {!canEdit && <span className="text-[0.68rem] text-muted2 uppercase tracking-wider">Solo lectura</span>}
           </div>
-          <MetadataFields value={form} onChange={setForm} tutors={tutors} disabled={!canEdit} showTutorAccount={user.role === "estudiante"} canChangeTutorAccount={false} />
+          <MetadataFields
+            value={form}
+            onChange={setForm}
+            tutors={tutors}
+            disabled={!canEdit}
+            showTutorAccount={user.role !== "estudiante"}
+            tutorAccountLocked={user.role !== "estudiante"}
+          />
         </div>
 
-        {/* Acciones por rol */}
-        {(canEdit || canAttach || user.role === "administrador") && (
-          <div className="card-flat p-5 space-y-4">
-            {canEdit && needsObs && (
-              <Field
-                label={
-                  isTutorCorrection
-                    ? "Respuesta del tutor a las correcciones del administrador"
-                    : isReviewer
-                    ? "Observaciones para el estudiante / administrador"
-                    : "Observaciones del administrador"
-                }
-                hint={isTutorCorrection ? "Opcional: agrega una nota antes de reenviar." : "Obligatorias al devolver o rechazar."}
-              >
-                <textarea
-                  className="textarea-base"
-                  rows={3}
-                  value={obs}
-                  onChange={(e) => setObs(e.target.value)}
-                  placeholder="Escribe aquí tus observaciones..."
-                />
-              </Field>
-            )}
-
-            <div className="flex flex-wrap gap-2 justify-end">
-              {canEdit && (
-                <SecondaryButton icon={<Save size={14} />} loading={busy === "guardar"} onClick={() => act("guardar")}>
-                  Guardar cambios
-                </SecondaryButton>
-              )}
-
-              {isStudentFix && (
-                <PrimaryButton icon={<Send size={15} />} loading={busy === "reenviar"} onClick={() => act("reenviar")}>
-                  Corregir y reenviar al tutor
-                </PrimaryButton>
-              )}
-
-              {isReviewer && (
-                <>
-                  <SecondaryButton
-                    tone="warning"
-                    icon={<Undo2 size={14} />}
-                    loading={busy === "devolver"}
-                    onClick={() => act("devolver")}
-                  >
-                    Devolver al estudiante
-                  </SecondaryButton>
-                  <PrimaryButton icon={<CheckCircle2 size={15} />} loading={busy === "validar"} onClick={() => act("validar")}>
-                    Validar y enviar al Administrador
-                  </PrimaryButton>
-                </>
-              )}
-
-              {isTutorCorrection && (
-                <PrimaryButton
-                  icon={<Send size={15} />}
-                  loading={busy === "reenviar_admin"}
-                  onClick={() => act("reenviar_admin")}
-                >
-                  Corregir y reenviar al Administrador
-                </PrimaryButton>
-              )}
-
-              {isAdminFinal && (
-                <>
-                  <SecondaryButton
-                    tone="warning"
-                    icon={<Undo2 size={14} />}
-                    loading={busy === "devolver_tutor"}
-                    onClick={() => act("devolver_tutor")}
-                  >
-                    Devolver al tutor
-                  </SecondaryButton>
-                  <SecondaryButton
-                    tone="danger"
-                    icon={<XCircle size={14} />} 
-                    loading={busy === "rechazar"}
-                    onClick={() => act("rechazar")}
-                  >
-                    Rechazar
-                  </SecondaryButton>
-                  <PrimaryButton
-                    icon={<CheckCircle2 size={15} />}
-                    loading={busy === "publicar"}
-                    disabled={!project.planilla}
-                    onClick={() => act("publicar")}
-                  >
-                    {project.planilla ? "Publicar en el repositorio" : "Publicar (falta planilla)"}
-                  </PrimaryButton>
-                </>
-              )}
-
-              {user.role === "administrador" && (
-                <SecondaryButton
-                  tone="danger"
-                  icon={<Trash2 size={14} />}
-                  loading={busy === "eliminar"}
-                  onClick={deleteProject}
-                >
-                  Eliminar proyecto
-                </SecondaryButton>
-              )}
-            </div>
+        {canEdit && needsObs && (
+          <div className="card-flat p-5">
+            <Field
+              label={
+                isStudentFix
+                  ? "Respuesta del estudiante a las correcciones"
+                  : isTutorCorrection
+                  ? "Observaciones del tutor"
+                  : isReviewer
+                  ? "Observaciones del tutor"
+                  : "Observaciones del administrador"
+              }
+              hint={
+                isStudentFix
+                  ? "Opcional: explica los cambios antes de reenviar al tutor."
+                  : isTutorCorrection
+                  ? "Obligatorias para devolver al estudiante; opcionales al reenviar al administrador."
+                  : "Obligatorias al devolver o rechazar."
+              }
+            >
+              <textarea
+                className="textarea-base"
+                rows={3}
+                value={obs}
+                onChange={(e) => setObs(e.target.value)}
+                placeholder="Escribe aquí tus observaciones..."
+              />
+            </Field>
           </div>
         )}
       </div>

@@ -65,10 +65,10 @@ export async function POST(req: Request, ctx: Ctx) {
 
     await logAudit({
       user,
-      action: kind === "pdf" ? "PDF del proyecto reemplazado" : "Planilla firmada adjuntada",
+      action: kind === "pdf" ? "PDF_REEMPLAZADO" : "PLANILLA_ADJUNTADA",
       entity: "proyecto",
       entityId: projectId,
-      details: { archivo: file.name, tamano: file.size },
+      details: { filename: file.name, size: file.size },
     });
 
     return Response.json({ project: await getProjectDTO(projectId) });

@@ -157,10 +157,10 @@ export async function POST(req: Request) {
 
     await logAudit({
       user,
-      action: "Proyecto enviado al tutor",
+      action: "PROYECTO_ENVIADO_TUTOR",
       entity: "proyecto",
       entityId: created.id,
-      details: { titulo, tutor: tutorRow.name, adjuntoPlanilla: !!planillaId },
+      details: { titulo, tutorId: tutorRow.id, tutor: tutorRow.name, planilla: !!planillaId },
     });
 
     const dto = await getProjectDTO(created.id);

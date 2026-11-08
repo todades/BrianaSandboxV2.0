@@ -1,22 +1,19 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { handleError, requireUser } from "@/lib/auth";
-import { DEFAULT_ADMIN_EMAIL } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Lista ordenada alfabéticamente de destinatarios verificados.
- * Los estudiantes nunca reciben el administrador como opción de tutor.
- * Los tutores inactivos se incluyen con isActive=false para mostrarlos deshabilitados.
- * El correo del administrador nunca aparece en la lista de tutores destinatarios.
+ * Las cuentas administrativas nunca son destinatarias del flujo de tutoría.
+ * Los tutores verificados se ordenan alfabéticamente; los inactivos se
+ * conservan en la lista para mostrarlos como «No disponible», pero no se
+ * pueden seleccionar para recibir nuevos proyectos.
  */
 export async function GET() {
   try {
-    const current = await requireUser();
-    const recipientRoles: ("tutor" | "administrador")[] =
-      current.role === "estudiante" ? ["tutor"] : ["tutor", "administrador"];
+    await requireUser();
     const rows = await db
       .select({
         id: users.id,
@@ -26,14 +23,7 @@ export async function GET() {
         isActive: users.isActive,
       })
       .from(users)
-      .where(
-        and(
-          inArray(users.role, recipientRoles),
-          eq(users.emailVerified, true),
-          eq(users.isActive, true),
-          sql`${users.email} <> ${DEFAULT_ADMIN_EMAIL}`
-        )
-      )
+      .where(eq(users.role, "tutor"))
       .orderBy(asc(sql`lower(${users.name})`), asc(users.name));
     return Response.json({ tutors: rows });
   } catch (e) {

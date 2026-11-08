@@ -26,7 +26,7 @@ import {
 import { ApiError, postJson } from "@/lib/api-client";
 import { DEFAULT_ADMIN_EMAIL, TRAYECTOS } from "@/lib/constants";
 import type { CodeDispatch, UserDTO } from "@/lib/types";
-import { isValidEmailAddress, isValidVenezuelanPhone } from "@/lib/validation";
+import { isValidEmailAddress, VENEZUELAN_MOBILE_HTML_PATTERN, VENEZUELAN_MOBILE_PREFIXES } from "@/lib/validation";
 import {
   Alert,
   Field,
@@ -632,18 +632,19 @@ export function AuthView({ onAuth }: { onAuth: (user: UserDTO) => void }) {
                   />
                   {fieldErrors.cedula && <p className="text-xs text-red-500 font-medium">{fieldErrors.cedula}</p>}
                 </Field>
-                <Field label="Teléfono" hint="Solo números · 10 a 11 dígitos">
+                <Field label="Teléfono" hint={`Móvil venezolano: ${VENEZUELAN_MOBILE_PREFIXES.slice(0, -1).join(", ")} o ${VENEZUELAN_MOBILE_PREFIXES.at(-1)} + 7 dígitos. Ejemplo: 04221234567.`}>
                   <input
                     className="input-base"
-                    placeholder="04141234567"
+                    placeholder="04221234567"
                     inputMode="numeric"
-                    pattern="[0-9]*"
+                    pattern={VENEZUELAN_MOBILE_HTML_PATTERN}
+                    title="Usa un móvil venezolano de 11 dígitos: 0412, 0414, 0416, 0422, 0424 o 0426."
                     maxLength={11}
                     value={phone}
                     onChange={(e) => {
                       const v = onlyDigits(e.target.value, 11);
                       setPhone(v);
-                      if (fieldErrors.phone) setFieldErrors((f) => ({ ...f, phone: validatePhone(v) }));
+                      setFieldErrors((f) => ({ ...f, phone: v.length > 0 && v.length < 11 ? null : validatePhone(v) }));
                     }}
                     onBlur={() => setFieldErrors((f) => ({ ...f, phone: validatePhone(phone) }))}
                     autoComplete="tel-national"

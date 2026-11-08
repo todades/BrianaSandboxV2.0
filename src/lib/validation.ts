@@ -1,13 +1,19 @@
-/** Prefijos móviles de Venezuela (10 dígitos totales). */
-export const MOBILE_PREFIXES = ["0412", "0414", "0416", "0422", "0424", "0426"] as const;
+/** Validaciones compartidas entre la interfaz y las rutas del servidor. */
+export const CEDULA_MIN_DIGITS = 6;
+export const CEDULA_MAX_DIGITS = 9;
+export const CEDULA_PATTERN = /^\d{6,9}$/;
 
-/** Valida teléfono móvil venezolano: prefijo 0412/0414/0416/0422/0424/0426 + 6 dígitos (10 dígitos). */
-export function isValidVenezuelanPhone(input: string): boolean {
-  const digits = input.replace(/\D/g, "");
-  return MOBILE_PREFIXES.some((prefix) => digits.startsWith(prefix)) && digits.length === 10;
+export function cedulaValidationError(value: string): string | null {
+  if (!/^\d+$/.test(value)) return "La cédula solo admite números, sin letras ni signos.";
+  if (value.length < CEDULA_MIN_DIGITS) return `La cédula debe tener al menos ${CEDULA_MIN_DIGITS} dígitos.`;
+  if (value.length > CEDULA_MAX_DIGITS) return `La cédula no debe superar ${CEDULA_MAX_DIGITS} dígitos.`;
+  return null;
 }
 
-/** Validación sintáctica estricta de correo; la verificación OTP confirma acceso real al buzón. */
+export const VENEZUELAN_MOBILE_PREFIXES = ["0412", "0414", "0416", "0422", "0424", "0426"] as const;
+export const VENEZUELAN_MOBILE_PATTERN = /^04(?:12|14|16|22|24|26)\d{7}$/;
+export const VENEZUELAN_MOBILE_HTML_PATTERN = "04(12|14|16|22|24|26)[0-9]{7}";
+
 export function isValidEmailAddress(input: string): boolean {
   const email = input.trim();
   if (!email || email.length > 254) return false;
@@ -25,4 +31,15 @@ export function isValidEmailAddress(input: string): boolean {
   if (labels.some((label) => !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i.test(label))) return false;
   const tld = labels[labels.length - 1];
   return /^[a-z]{2,63}$/i.test(tld) || /^xn--[a-z0-9-]{2,59}$/i.test(tld);
+}
+
+/** El teléfono es opcional; si se informa, exige un móvil venezolano completo. */
+export function phoneValidationError(value: string): string | null {
+  if (!value) return null;
+  if (!/^\d+$/.test(value)) return "El teléfono solo admite números, sin espacios ni guiones.";
+  if (value.length !== 11) return "El teléfono debe tener 11 dígitos, por ejemplo 04121234567.";
+  if (!VENEZUELAN_MOBILE_PATTERN.test(value)) {
+    return `El teléfono debe comenzar con ${VENEZUELAN_MOBILE_PREFIXES.slice(0, -1).join(", ")} o ${VENEZUELAN_MOBILE_PREFIXES.at(-1)} y tener 11 dígitos.`;
+  }
+  return null;
 }

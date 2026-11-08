@@ -15,7 +15,7 @@ import {
   Sun,
 } from "lucide-react";
 import { ROLE_LABEL, STATUS_META, type ProjectStatus, type Role } from "@/lib/constants";
-import { isValidVenezuelanPhone } from "@/lib/validation";
+import { cedulaValidationError, phoneValidationError } from "@/lib/validation";
 
 /* ------------------------------------------------------------------ */
 /* Logo                                                                */
@@ -104,17 +104,11 @@ export function validateFullName(value: string): string | null {
 }
 
 export function validateCedula(value: string): string | null {
-  if (!/^\d+$/.test(value)) return "La cédula solo admite números.";
-  if (value.length < 6) return "La cédula debe tener al menos 6 dígitos.";
-  if (value.length > 9) return "La cédula no debe superar 9 dígitos.";
-  return null;
+  return cedulaValidationError(value);
 }
 
 export function validatePhone(value: string): string | null {
-  if (!value) return null; // opcional
-  if (!isValidVenezuelanPhone(value))
-    return "El teléfono debe ser un móvil venezolano válido (0412, 0414, 0416, 0422, 0424 o 0426 + 6 dígitos, ej: 0414123456).";
-  return null;
+  return phoneValidationError(value);
 }
 
 /* ------------------------------------------------------------------ */
@@ -309,6 +303,7 @@ export function Modal({
   subtitle,
   children,
   wide = false,
+  footer,
 }: {
   open: boolean;
   onClose: () => void;
@@ -316,6 +311,7 @@ export function Modal({
   subtitle?: ReactNode;
   children: ReactNode;
   wide?: boolean;
+  footer?: ReactNode;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -349,6 +345,7 @@ export function Modal({
           </button>
         </div>
         <div className="overflow-y-auto px-6 py-5">{children}</div>
+        {footer && <div className="border-t border-line bg-card px-6 py-3">{footer}</div>}
       </div>
     </div>
   );
@@ -387,11 +384,15 @@ export function StatCard({
   value,
   icon,
   tone = "cyan",
+  onClick,
+  active = false,
 }: {
   label: string;
   value: ReactNode;
   icon: ReactNode;
   tone?: "cyan" | "blue" | "emerald" | "amber" | "purple";
+  onClick?: () => void;
+  active?: boolean;
 }) {
   const tones = {
     cyan: "bg-cyan-500/15 text-cyan-500",
@@ -400,17 +401,29 @@ export function StatCard({
     amber: "bg-amber-500/15 text-amber-500",
     purple: "bg-purple-500/15 text-purple-500",
   };
-  return (
-    <div className="card-flat p-5 card-glow">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-[0.68rem] uppercase tracking-wider text-muted font-bold">{label}</p>
-          <p className="text-3xl font-black text-ink mt-1">{value}</p>
-        </div>
-        <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${tones[tone]}`}>{icon}</div>
+  const content = (
+    <div className="flex items-center justify-between gap-3">
+      <div className="min-w-0">
+        <p className="text-[0.68rem] uppercase tracking-wider text-muted font-bold">{label}</p>
+        <p className="text-2xl font-black text-ink mt-1">{value}</p>
       </div>
+      <div className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center ${tones[tone]}`}>{icon}</div>
     </div>
   );
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-pressed={active}
+        title={`Filtrar por ${label}`}
+        className={`card-flat p-4 text-left transition hover:border-cyan-500/50 ${active ? "border-cyan-500/60 bg-cyan-500/10" : ""}`}
+      >
+        {content}
+      </button>
+    );
+  }
+  return <div className="card-flat p-4">{content}</div>;
 }
 
 export function PillTabs<T extends string>({

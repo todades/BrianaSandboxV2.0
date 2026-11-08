@@ -1,4 +1,4 @@
-import { and, eq, inArray, or } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import { db } from "@/db";
 import { files, projects, users } from "@/db/schema";
 import { handleError, HttpError, requireUser } from "@/lib/auth";
@@ -66,7 +66,7 @@ export async function DELETE(_req: Request, ctx: Ctx) {
 
     await logAudit({
       user,
-      action: "Proyecto eliminado",
+      action: "PROYECTO_ELIMINADO",
       entity: "proyecto",
       entityId: projectId,
       details: { titulo: deleted.titulo, archivosEliminados: deleted.removedFiles },
@@ -96,9 +96,10 @@ interface PatchBody {
 
 /**
  * Flujo institucional:
- *  - Estudiante (status devuelto): "guardar" / "reenviar" -> enviado_tutor
- *  - Tutor asignado (enviado_tutor): "guardar", "validar" -> validado_tutor, "devolver" -> devuelto
- *  - Administrador (validado_tutor): "guardar", "publicar" -> publicado (requiere planilla), "rechazar" -> rechazado
+ *  - Estudiante (devuelto): "guardar" / "reenviar" -> enviado_tutor.
+ *  - Tutor asignado (enviado_tutor o devuelto_tutor): puede "devolver" al estudiante,
+ *    "validar" o "reenviar_admin" según el estado.
+ *  - Administrador (validado_tutor): "devolver_tutor", "publicar" o "rechazar".
  */
 export async function PATCH(req: Request, ctx: Ctx) {
   try {
@@ -126,6 +127,10 @@ export async function PATCH(req: Request, ctx: Ctx) {
       user.role === "tutor" && current.tutorId === user.id && current.status === "devuelto_tutor";
     const isStudentFix =
       user.role === "estudiante" && current.studentId === user.id && current.status === "devuelto";
+    const canReturnToStudent =
+      user.role === "tutor" &&
+      current.tutorId === user.id &&
+      (current.status === "enviado_tutor" || current.status === "devuelto_tutor");
     const canEdit = isReviewer || isTutorCorrection || isAdminFinal || isStudentFix;
 
     if (Object.keys(md).length > 0) {
@@ -152,8 +157,30 @@ export async function PATCH(req: Request, ctx: Ctx) {
         updates.autores = list;
       }
       if (md.tutorNombre !== undefined) updates.tutorNombre = md.tutorNombre.trim() || null;
-      // La cuenta del tutor destinatario solo la elige el estudiante al crear el proyecto.
-      // Ni el tutor ni el administrador pueden cambiarla durante correcciones.
+      if (md.tutorId !== undefined) {
+        if (user.role !== "estudiante") {
+          const unchanged = md.tutorId === "" ? current.tutorId === null : Number(md.tutorId) === current.tutorId;
+          if (!unchanged) {
+            throw new HttpError(403, "La cuenta del tutor asignado no puede modificarse durante la revisión o corrección.");
+          }
+        } else if (md.tutorId !== "") {
+          const tid = parseInt(md.tutorId, 10);
+          const [t] = await db
+            .select({ id: users.id, name: users.name })
+            .from(users)
+            .where(
+              and(
+                eq(users.id, tid),
+                eq(users.role, "tutor"),
+                eq(users.emailVerified, true),
+                eq(users.isActive, true)
+              )
+            )
+            .limit(1);
+          if (!t) throw new HttpError(400, "Selecciona un tutor disponible.");
+          updates.tutorId = t.id;
+        }
+      }
       if (md.anio !== undefined) {
         const y = md.anio.trim() ? parseInt(md.anio, 10) : null;
         if (md.anio.trim() && (!y || y < 1990 || y > new Date().getFullYear() + 1))
@@ -170,51 +197,53 @@ export async function PATCH(req: Request, ctx: Ctx) {
     }
 
     let nextStatus: ProjectStatus | null = null;
-    let auditAction = "Proyecto actualizado";
+    let auditAction = "PROYECTO_ACTUALIZADO";
 
     switch (action) {
       case "guardar":
         if (!canEdit) throw new HttpError(403, "No puedes editar este proyecto ahora.");
         break;
       case "reenviar":
-        if (!isStudentFix) throw new HttpError(403, "Solo el estudiante puede reenviar un proyecto devuelto.");
+        if (!isStudentFix) throw new HttpError(403, "Solo el estudiante puede reenviar al tutor un proyecto devuelto.");
         nextStatus = "enviado_tutor";
-        updates.observaciones = null;
-        auditAction = "Proyecto reenviado al tutor por el estudiante";
+        updates.observaciones = observaciones || null;
+        auditAction = "PROYECTO_REENVIADO_TUTOR";
         break;
       case "reenviar_admin":
         if (!isTutorCorrection) {
-          throw new HttpError(403, "Solo el tutor asignado puede reenviar al administrador un proyecto devuelto para correcciones.");
+          throw new HttpError(403, "Solo el tutor asignado puede reenviar al Administrador un proyecto devuelto para correcciones.");
         }
         nextStatus = "validado_tutor";
         updates.validatedAt = new Date();
         updates.observaciones = null;
-        auditAction = "Proyecto reenviado al administrador por el tutor";
+        auditAction = "PROYECTO_REENVIADO_ADMIN";
         break;
       case "devolver_tutor":
         if (!isAdminFinal) {
-          throw new HttpError(403, "Solo el administrador puede devolver al tutor un proyecto pendiente de publicación.");
+          throw new HttpError(403, "Solo el Administrador puede devolver al tutor un proyecto pendiente de publicación.");
         }
         if (observaciones.length < 5) {
           throw new HttpError(400, "Escribe las correcciones que debe realizar el tutor.");
         }
         nextStatus = "devuelto_tutor";
         updates.observaciones = observaciones;
-        auditAction = "Proyecto devuelto al tutor por el administrador";
+        auditAction = "PROYECTO_DEVUELTO_TUTOR";
         break;
       case "validar":
         if (!isReviewer) throw new HttpError(403, "Solo el tutor destinatario puede validar un proyecto en revisión.");
         nextStatus = "validado_tutor";
         updates.validatedAt = new Date();
         updates.observaciones = observaciones || null;
-        auditAction = "Proyecto validado por el tutor";
+        auditAction = "PROYECTO_VALIDADO_TUTOR";
         break;
       case "devolver":
-        if (!isReviewer) throw new HttpError(403, "Solo el tutor destinatario puede devolver un proyecto.");
-        if (observaciones.length < 5) throw new HttpError(400, "Indica las observaciones para el estudiante.");
+        if (!canReturnToStudent) {
+          throw new HttpError(403, "Solo el tutor asignado puede devolver este proyecto al estudiante.");
+        }
+        if (observaciones.length < 5) throw new HttpError(400, "Indica las correcciones que debe realizar el estudiante.");
         nextStatus = "devuelto";
         updates.observaciones = observaciones;
-        auditAction = "Proyecto devuelto al estudiante";
+        auditAction = "PROYECTO_DEVUELTO_ESTUDIANTE";
         break;
       case "publicar":
         if (!isAdminFinal)
@@ -224,14 +253,14 @@ export async function PATCH(req: Request, ctx: Ctx) {
         nextStatus = "publicado";
         updates.publishedAt = new Date();
         updates.observaciones = observaciones || null;
-        auditAction = "Proyecto publicado en el repositorio";
+        auditAction = "PROYECTO_PUBLICADO";
         break;
       case "rechazar":
         if (!isAdminFinal) throw new HttpError(403, "Solo el administrador puede rechazar proyectos validados.");
         if (observaciones.length < 5) throw new HttpError(400, "Indica el motivo del rechazo.");
         nextStatus = "rechazado";
         updates.observaciones = observaciones;
-        auditAction = "Proyecto rechazado por el administrador";
+        auditAction = "PROYECTO_RECHAZADO";
         break;
       default:
         throw new HttpError(400, "Acción no reconocida.");
@@ -246,10 +275,12 @@ export async function PATCH(req: Request, ctx: Ctx) {
       entity: "proyecto",
       entityId: projectId,
       details: {
-        estadoAnterior: current.status,
-        estadoNuevo: nextStatus ?? current.status,
+        de: current.status,
+        a: nextStatus ?? current.status,
         observaciones: observaciones || undefined,
-        camposModificados: Object.keys(md),
+        camposEditados: Object.keys(md),
+        correccionesPreviasDelAdministrador:
+          action === "devolver" && current.status === "devuelto_tutor" ? current.observaciones ?? undefined : undefined,
       },
     });
 

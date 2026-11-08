@@ -7,7 +7,7 @@ import { TRAYECTOS } from "@/lib/constants";
 import { getAdminCredentials } from "@/lib/seed";
 import { sendCode } from "@/lib/codes";
 import type { CodeDispatch } from "@/lib/types";
-import { isValidEmailAddress, isValidVenezuelanPhone } from "@/lib/validation";
+import { cedulaValidationError, isValidEmailAddress, phoneValidationError } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
 
@@ -42,13 +42,10 @@ export async function POST(req: Request) {
     if (email === getAdminCredentials().email) {
       throw new HttpError(400, "Ese correo está reservado para el administrador del sistema.");
     }
-    // Validación estricta: cédula solo números (6-9 dígitos), teléfono solo números (10-11 dígitos).
-    if (!/^\d{6,9}$/.test(cedula)) {
-      throw new HttpError(400, "La cédula debe contener solo números, entre 6 y 9 dígitos (ej: 12345678).");
-    }
-    if (phone && !isValidVenezuelanPhone(phone)) {
-      throw new HttpError(400, "El teléfono debe ser un móvil venezolano válido (0412, 0414, 0416, 0422, 0424 o 0426 + 6 dígitos, ej: 0414123456).");
-    }
+    const cedulaError = cedulaValidationError(cedula);
+    if (cedulaError) throw new HttpError(400, cedulaError);
+    const phoneError = phoneValidationError(phone);
+    if (phoneError) throw new HttpError(400, phoneError);
     if (password.length < 6) throw new HttpError(400, "La contraseña debe tener al menos 6 caracteres.");
     if (password !== confirm) throw new HttpError(400, "Las contraseñas no coinciden.");
     if (accountType === "estudiante" && !(TRAYECTOS as readonly string[]).includes(trayecto)) {
@@ -106,10 +103,10 @@ export async function POST(req: Request) {
 
     await logAudit({
       user: created,
-      action: "Cuenta registrada",
+      action: "REGISTRO_CUENTA",
       entity: "usuario",
       entityId: created.id,
-      details: { rol: created.role, correo: created.email, codigoEnviado: dispatch?.delivered ?? false },
+      details: { role: created.role, email: created.email, codigoEnviado: dispatch?.delivered ?? false },
     });
 
     const payload: CodeDispatch & { pendingVerification: true } = {
