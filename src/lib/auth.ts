@@ -48,18 +48,6 @@ export function handleError(e: unknown): Response {
   console.error("[BRIANA] Error no controlado:", e);
 
   const code = postgresCode(e);
-  if (code === "23505") {
-    return Response.json({ error: "Ya existe una cuenta con esos datos. Comprueba el correo y vuelve a intentarlo." }, { status: 409 });
-  }
-  if (code === "23502") {
-    const cause = (e as { cause?: { column?: unknown } })?.cause;
-    const column = cause && typeof cause.column === "string" ? cause.column : "desconocida";
-    return Response.json({
-      error: `La base antigua exige el campo «${column}», que no existe en el formulario actual. Actualiza el esquema y vuelve a intentarlo.`,
-      schemaOutdated: true,
-      missingColumn: column,
-    }, { status: 503 });
-  }
   // 42703 columna inexistente · 42P01 tabla inexistente · 42704 tipo/objeto inexistente
   if (code === "42703" || code === "42P01" || code === "42704" || code === "SCHEMA_INCOMPLETE") {
     return Response.json(
