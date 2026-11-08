@@ -6,7 +6,8 @@ services:
     runtime: node
     plan: free
     region: oregon
-    buildCommand: npm ci --include=dev && npx drizzle-kit push --force && npm run build
+    # El esquema se aplica solo al arrancar (scripts/migrate-production.cjs).
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: node server.js
     healthCheckPath: /api/health
     autoDeploy: true

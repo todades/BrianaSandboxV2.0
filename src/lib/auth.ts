@@ -29,13 +29,41 @@ export class HttpError extends Error {
   }
 }
 
+function postgresCode(e: unknown): string | undefined {
+  if (!e || typeof e !== "object") return undefined;
+  const direct = (e as { code?: unknown }).code;
+  if (typeof direct === "string") return direct;
+  const cause = (e as { cause?: unknown }).cause;
+  if (cause && typeof cause === "object") {
+    const nested = (cause as { code?: unknown }).code;
+    if (typeof nested === "string") return nested;
+  }
+  return undefined;
+}
+
 export function handleError(e: unknown): Response {
   if (e instanceof HttpError) {
     return Response.json({ error: e.message, ...(e.data ?? {}) }, { status: e.status });
   }
   console.error("[BRIANA] Error no controlado:", e);
-  const message = e instanceof Error ? e.message : "Error interno del servidor";
-  return Response.json({ error: message }, { status: 500 });
+
+  const code = postgresCode(e);
+  // 42703 columna inexistente · 42P01 tabla inexistente · 42704 tipo/objeto inexistente
+  if (code === "42703" || code === "42P01" || code === "42704") {
+    return Response.json(
+      {
+        error:
+          "La base de datos de producción está desactualizada (falta una columna o tabla). Vuelve a desplegar: el arranque actualiza el esquema automáticamente, o ejecuta node scripts/migrate-production.cjs con DATABASE_URL.",
+        schemaOutdated: true,
+      },
+      { status: 503 }
+    );
+  }
+
+  return Response.json(
+    { error: "No se pudo completar la operación. Inténtalo de nuevo o contacta al administrador." },
+    { status: 500 }
+  );
 }
 
 /* ------------------------------------------------------------------ */
