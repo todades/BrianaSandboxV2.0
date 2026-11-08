@@ -6,7 +6,9 @@
     "build": "next build",
     "start": "node server.js",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:render": "node scripts/doctor-render.cjs",
+    "db:migrate": "node scripts/migrate-production.cjs"
   },
   "dependencies": {
     "@types/nodemailer": "^8.0.2",

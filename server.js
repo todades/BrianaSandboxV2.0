@@ -14,12 +14,20 @@ const next = require("next");
 
 // En Render las variables vienen del panel; en local se leen desde .env.
 try {
-  require("dotenv").config();
+  require("dotenv").config({ quiet: true });
 } catch {
-  /* dotenv es opcional si el entorno ya está inyectado */
+  try { require("dotenv").config(); } catch { /* entorno inyectado */ }
 }
 
-const { migrateDatabase } = require("./scripts/migrate-production.cjs");
+let migrateDatabase;
+try {
+  ({ migrateDatabase } = require("./scripts/migrate-production.cjs"));
+} catch (error) {
+  console.error("[BRIANA] No se pudo cargar scripts/migrate-production.cjs.");
+  console.error("[BRIANA] Copia la carpeta scripts completa del parche (migrate-production.cjs y production-schema.sql), no solo server.js.");
+  console.error("[BRIANA] Detalle:", error.message);
+  process.exit(1);
+}
 
 const port = Number.parseInt(process.env.PORT || "3000", 10);
 const hostname = process.env.HOST || "0.0.0.0";
@@ -45,8 +53,13 @@ async function prepareDatabase() {
       await migrateDatabase(process.env.DATABASE_URL);
       return;
     } catch (error) {
-      console.error(`[BRIANA] Intento ${attempt}/${attempts} de actualización de esquema falló:`, error.message);
-      if (attempt === attempts) throw error;
+      console.error(`[BRIANA] Intento ${attempt}/${attempts} de actualización de esquema falló.`);
+      console.error(`[BRIANA] Código: ${error.code || "sin código"} · Detalle: ${error.message}`);
+      if (attempt === attempts) {
+        const wrapped = new Error(`No se pudo inicializar PostgreSQL: ${error.message}`);
+        wrapped.code = error.code;
+        throw wrapped;
+      }
       await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
     }
   }
@@ -56,7 +69,12 @@ async function main() {
   await prepareDatabase();
 
   const app = next({ dev, hostname, port });
-  await app.prepare();
+  try {
+    await app.prepare();
+  } catch (error) {
+    console.error("[BRIANA] Next.js no pudo cargar la compilación (.next). Ejecuta npm run build en el build command.");
+    throw error;
+  }
   const handle = app.getRequestHandler();
 
   const server = http.createServer((req, res) => {
@@ -90,6 +108,8 @@ async function main() {
 
 main().catch((error) => {
   console.error("[BRIANA] Falló el arranque:", error.message);
-  console.error("[BRIANA] Revisa DATABASE_URL/SSL o ejecuta: node scripts/migrate-production.cjs");
+  if (error.code) console.error("[BRIANA] Código de error:", error.code);
+  console.error("[BRIANA] Diagnóstico seguro: node scripts/doctor-render.cjs");
+  console.error("[BRIANA] Si el esquema está desactualizado: node scripts/migrate-production.cjs");
   process.exit(1);
 });

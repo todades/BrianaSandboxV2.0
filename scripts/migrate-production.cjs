@@ -66,4 +66,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { migrateDatabase };
+module.exports = { migrateDatabase, sslFor };

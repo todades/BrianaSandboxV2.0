@@ -126,3 +126,43 @@ migración (sección 3 o 4) y reintenta.
 > Nota: Render Free bloquea SMTP saliente. El arranque y la base quedan
 > corregidos, pero para enviar códigos por correo necesitas instancia de pago
 > o un transporte HTTPS.
+
+---
+
+## 8. Si Render vuelve a marcar “Deploy failed / Exited with status 1”
+
+El aviso rojo de `npm audit` (vulnerabilities) **no es la causa** del fallo de
+arranque; es una advertencia. El fallo real aparece después de `Build successful`.
+
+1. Copia también la carpeta `scripts/` completa del parche. Si solo copiaste
+   `server.js`, faltará `scripts/migrate-production.cjs`.
+2. En Render → **Shell** (o en tu máquina con las mismas variables) ejecuta:
+
+```bash
+npm run check:render
+```
+
+o equivalentemente:
+
+```bash
+node scripts/doctor-render.cjs
+```
+
+Para aplicar la migración desde el diagnóstico:
+
+```bash
+node scripts/doctor-render.cjs --fix
+```
+
+3. Si el diagnóstico dice que falta una variable, agrégala en
+   **Render → Environment** y vuelve a desplegar.
+4. Si dice que `DATABASE_URL` apunta a `localhost`, cámbiala por la URL externa
+   de Neon/Render Postgres con `?sslmode=require` y `DATABASE_SSL=true`.
+5. Si dice que falta `scripts/migrate-production.cjs`, sube la carpeta
+   `scripts/` completa al repositorio.
+6. Logs esperados tras un arranque correcto:
+
+```text
+[BRIANA] Esquema de base de datos verificado/actualizado.
+[BRIANA] Servidor listo en http://0.0.0.0:10000
+```
