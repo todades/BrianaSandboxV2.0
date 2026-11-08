@@ -56,8 +56,8 @@ export async function POST(req: Request) {
     await saveGeminiKey(key);
     await logAudit({
       user,
-      action: "Clave de IA actualizada",
-      entity: "configuración",
+      action: "IA_CLAVE_ACTUALIZADA",
+      entity: "configuracion",
       details: { verificada: check.ok, error: check.error },
     });
 
@@ -77,7 +77,7 @@ export async function DELETE() {
   try {
     const user = await requireUser(["administrador"]);
     await saveGeminiKey(null);
-    await logAudit({ user, action: "Clave de IA eliminada", entity: "configuración" });
+    await logAudit({ user, action: "IA_CLAVE_ELIMINADA", entity: "configuracion" });
     return Response.json({ ok: true });
   } catch (e) {
     return handleError(e);

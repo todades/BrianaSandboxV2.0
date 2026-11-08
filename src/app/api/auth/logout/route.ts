@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export async function POST() {
   try {
     const user = await getCurrentUser();
-    if (user) await logAudit({ user, action: "Cierre de sesión", entity: "usuario", entityId: user.id });
+    if (user) await logAudit({ user, action: "LOGOUT", entity: "usuario", entityId: user.id });
     await destroySession();
     return Response.json({ ok: true });
   } catch (e) {

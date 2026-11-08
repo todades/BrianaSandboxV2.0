@@ -1,31 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Inbox, History, RefreshCw, UserCog } from "lucide-react";
-import { api } from "@/lib/api-client";
-import type { ProjectDTO, UserDTO } from "@/lib/types";
+import type { UserDTO } from "@/lib/types";
+import { useProjectList } from "./useProjectList";
 import { TopNav } from "./TopNav";
 import { ProjectCard, ProjectDetailModal } from "./ProjectViews";
 import { Alert, EmptyState, PillTabs, SecondaryButton, Spinner } from "./ui";
+import { ProjectFilters } from "./ProjectFilters";
+import { ALL_PROJECTS_FILTER, isProjectFilterActive, matchesProjectFilter, matchesProjectSearch, type ProjectFilter } from "@/lib/project-filters";
 
 type Tab = "bandeja" | "historial";
 
 export function TutorDashboard({ user, onLogout }: { user: UserDTO; onLogout: () => void }) {
   const [tab, setTab] = useState<Tab>("bandeja");
-  const [projects, setProjects] = useState<ProjectDTO[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<ProjectDTO | null>(null);
+  const { projects, error, loading, load, applyUpdated } = useProjectList();
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
-
-  const load = useCallback(async () => {
-    try {
-      const { projects } = await api<{ projects: ProjectDTO[] }>("/api/projects");
-      setProjects(projects);
-      setError(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudieron cargar los proyectos.");
-    }
-  }, []);
+  const [filter, setFilter] = useState<ProjectFilter>(ALL_PROJECTS_FILTER);
+  const selected = useMemo(() => projects?.find((p) => p.id === selectedId) ?? null, [projects, selectedId]);
 
   useEffect(() => {
     queueMicrotask(() => void load());
@@ -40,16 +33,11 @@ export function TutorDashboard({ user, onLogout }: { user: UserDTO; onLogout: ()
     [projects]
   );
   const activeList = tab === "bandeja" ? bandeja : historial;
-  const list = useMemo(() => {
-    const q = search.trim().toLocaleLowerCase("es");
-    if (!q) return activeList;
-    return activeList.filter((p) =>
-      [p.titulo, p.codigo ?? "", p.studentName ?? "", p.status, p.observaciones ?? ""]
-        .join(" ")
-        .toLocaleLowerCase("es")
-        .includes(q)
-    );
-  }, [activeList, search]);
+  const list = useMemo(
+    () => activeList.filter((p) => matchesProjectFilter(p, filter) && matchesProjectSearch(p, search)),
+    [activeList, filter, search]
+  );
+  const filtersActive = isProjectFilterActive(filter) || search.trim().length > 0;
 
   return (
     <div className="min-h-screen bg-app">
@@ -74,20 +62,21 @@ export function TutorDashboard({ user, onLogout }: { user: UserDTO; onLogout: ()
               { id: "historial", label: "Historial", icon: <History size={14} />, count: historial.length },
             ]}
           />
-          <SecondaryButton size="sm" icon={<RefreshCw size={13} />} onClick={load}>
+          <SecondaryButton size="sm" icon={<RefreshCw size={13} />} onClick={load} loading={loading}>
             Actualizar
           </SecondaryButton>
         </div>
 
-        <div className="mb-4 max-w-md">
-          <label className="sr-only" htmlFor="tutor-project-search">Buscar proyectos</label>
-          <input
-            id="tutor-project-search"
-            className="input-base"
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por título, código o estudiante..."
+        <div className="mb-4">
+          <ProjectFilters
+            idPrefix="tutor-project"
+            projects={activeList}
+            filter={filter}
+            onFilterChange={setFilter}
+            search={search}
+            onSearchChange={setSearch}
+            resultCount={list.length}
+            showTutorFilter={false}
           />
         </div>
 
@@ -99,10 +88,10 @@ export function TutorDashboard({ user, onLogout }: { user: UserDTO; onLogout: ()
             <div className="card p-8 md:p-10">
               <EmptyState
                 icon={tab === "bandeja" ? <Inbox size={38} /> : <History size={38} />}
-                title={search ? "No hay coincidencias" : tab === "bandeja" ? "Tu bandeja está vacía" : "Sin historial todavía"}
+                title={filtersActive ? "No hay coincidencias" : tab === "bandeja" ? "Tu bandeja está vacía" : "Sin historial todavía"}
               >
-                {search
-                  ? "Prueba con otro título, código, nombre de estudiante u observación."
+                {filtersActive
+                  ? "Prueba con otra categoría, título, código o nombre de estudiante."
                   : tab === "bandeja"
                     ? "Los proyectos nuevos y los devueltos por el Administrador aparecerán aquí para revisión o corrección."
                     : "Aquí verás los proyectos que ya validaste, devolviste o que fueron publicados."}
@@ -111,7 +100,7 @@ export function TutorDashboard({ user, onLogout }: { user: UserDTO; onLogout: ()
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {list.map((p) => (
-                <ProjectCard key={p.id} project={p} role={user.role} onOpen={setSelected} />
+                <ProjectCard key={p.id} project={p} role={user.role} onOpen={(project) => setSelectedId(project.id)} />
               ))}
             </div>
           )}
@@ -121,11 +110,8 @@ export function TutorDashboard({ user, onLogout }: { user: UserDTO; onLogout: ()
       <ProjectDetailModal
         project={selected}
         user={user}
-        onClose={() => setSelected(null)}
-        onUpdated={(p) => {
-          setProjects((prev) => (prev ?? []).map((x) => (x.id === p.id ? p : x)));
-          setSelected(p);
-        }}
+        onClose={() => setSelectedId(null)}
+        onUpdated={applyUpdated}
       />
     </div>
   );

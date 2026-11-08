@@ -30,11 +30,11 @@ export async function GET() {
     ]);
 
     const tutorsLoad = await db
-      .select({ id: users.id, name: users.name, total: count(projects.id) })
+      .select({ id: users.id, name: users.name, email: users.email, total: count(projects.id) })
       .from(users)
       .leftJoin(projects, eq(projects.tutorId, users.id))
       .where(eq(users.role, "tutor"))
-      .groupBy(users.id, users.name)
+      .groupBy(users.id, users.name, users.email)
       .orderBy(desc(count(projects.id)));
 
     const recent = await db

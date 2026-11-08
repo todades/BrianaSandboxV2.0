@@ -25,9 +25,9 @@ export async function POST(req: Request) {
 
     await logAudit({
       user,
-      action: "Extracción de metadatos con IA",
+      action: "IA_EXTRACCION_METADATOS",
       entity: "archivo",
-      details: { archivo: pdf.name, tamano: pdf.size, origen: result.source, modelo: result.model },
+      details: { filename: pdf.name, size: pdf.size, source: result.source, model: result.model },
     });
 
     return Response.json(result);

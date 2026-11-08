@@ -1,34 +1,34 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BookMarked, FolderOpen, Sparkles, FileText, ChevronRight, RefreshCw } from "lucide-react";
-import { api } from "@/lib/api-client";
-import type { ProjectDTO, UserDTO } from "@/lib/types";
+import type { UserDTO } from "@/lib/types";
 import { TopNav } from "./TopNav";
 import { SandboxPanel } from "./SandboxPanel";
 import { ProjectCard, ProjectDetailModal } from "./ProjectViews";
 import { EmptyState, PillTabs, PrimaryButton, SecondaryButton, Spinner, Alert } from "./ui";
+import { useProjectList } from "./useProjectList";
+import { ProjectFilters } from "./ProjectFilters";
+import { ALL_PROJECTS_FILTER, isProjectFilterActive, matchesProjectFilter, matchesProjectSearch, type ProjectFilter } from "@/lib/project-filters";
 
 type Tab = "sandbox" | "projects";
 
 export function StudentDashboard({ user, onLogout }: { user: UserDTO; onLogout: () => void }) {
   const [tab, setTab] = useState<Tab>("sandbox");
-  const [projects, setProjects] = useState<ProjectDTO[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<ProjectDTO | null>(null);
-
-  const load = useCallback(async () => {
-    try {
-      const { projects } = await api<{ projects: ProjectDTO[] }>("/api/projects");
-      setProjects(projects);
-      setError(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudieron cargar los proyectos.");
-    }
-  }, []);
+  const { projects, error, loading, load, applyUpdated } = useProjectList();
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<ProjectFilter>(ALL_PROJECTS_FILTER);
+  const selected = useMemo(() => projects?.find((p) => p.id === selectedId) ?? null, [projects, selectedId]);
+  const allProjects = useMemo(() => projects ?? [], [projects]);
+  const visibleProjects = useMemo(
+    () => allProjects.filter((p) => matchesProjectFilter(p, filter) && matchesProjectSearch(p, search)),
+    [allProjects, filter, search]
+  );
+  const filtersActive = isProjectFilterActive(filter) || search.trim().length > 0;
+  const returnedCount = allProjects.filter((p) => p.status === "devuelto").length;
 
   useEffect(() => {
-    // Carga diferida: evita setState síncrono dentro del efecto.
     queueMicrotask(() => void load());
   }, [load]);
 
@@ -48,6 +48,24 @@ export function StudentDashboard({ user, onLogout }: { user: UserDTO; onLogout: 
           </p>
         </div>
 
+        {returnedCount > 0 && tab === "sandbox" && (
+          <div className="mb-4">
+            <Alert tone="warning" title={`Tienes ${returnedCount} proyecto(s) devueltos para corrección`}>
+              <button
+                type="button"
+                className="font-semibold underline underline-offset-2"
+                onClick={() => {
+                  setTab("projects");
+                  setFilter({ field: "status", value: "devuelto" });
+                  setSearch("");
+                }}
+              >
+                Ver proyectos devueltos y reenviarlos al tutor
+              </button>
+            </Alert>
+          </div>
+        )}
+
         <div className="mb-6">
           <PillTabs<Tab>
             value={tab}
@@ -60,12 +78,7 @@ export function StudentDashboard({ user, onLogout }: { user: UserDTO; onLogout: 
         </div>
 
         {tab === "sandbox" ? (
-          <SandboxPanel
-            user={user}
-            onSubmitted={(p) => {
-              setProjects((prev) => [p, ...(prev ?? [])]);
-            }}
-          />
+          <SandboxPanel user={user} onSubmitted={applyUpdated} />
         ) : (
           <div className="fade-in space-y-4">
             <div className="flex items-center justify-between">
@@ -75,33 +88,51 @@ export function StudentDashboard({ user, onLogout }: { user: UserDTO; onLogout: 
                   {count} {count === 1 ? "proyecto" : "proyectos"}
                 </span>
               </div>
-              <SecondaryButton size="sm" icon={<RefreshCw size={13} />} onClick={load}>
+              <SecondaryButton size="sm" icon={<RefreshCw size={13} />} onClick={load} loading={loading}>
                 Actualizar
               </SecondaryButton>
             </div>
 
+            <ProjectFilters
+              idPrefix="student-project"
+              projects={allProjects}
+              filter={filter}
+              onFilterChange={setFilter}
+              search={search}
+              onSearchChange={setSearch}
+              resultCount={visibleProjects.length}
+              showTutorFilter={false}
+            />
+
             {error && <Alert tone="error">{error}</Alert>}
             {projects === null ? (
               <Spinner />
-            ) : projects.length === 0 ? (
+            ) : visibleProjects.length === 0 ? (
               <div className="card p-10">
                 <EmptyState
                   icon={<FolderOpen size={38} />}
-                  title="No has enviado proyectos todavía"
+                  title={filtersActive ? "No hay proyectos con esos filtros" : "No has enviado proyectos todavía"}
                   action={
-                    <PrimaryButton onClick={() => setTab("sandbox")} icon={<ChevronRight size={16} />}>
-                      Ir al Sandbox
-                    </PrimaryButton>
+                    filtersActive ? (
+                      <SecondaryButton size="sm" onClick={() => { setFilter(ALL_PROJECTS_FILTER); setSearch(""); }}>
+                        Limpiar filtros
+                      </SecondaryButton>
+                    ) : (
+                      <PrimaryButton size="sm" onClick={() => setTab("sandbox")} icon={<ChevronRight size={16} />}>
+                        Ir al Sandbox
+                      </PrimaryButton>
+                    )
                   }
                 >
-                  Ve a la pestaña <span className="text-cyan-500 font-semibold">Sandbox</span> y envía tu primer
-                  proyecto. Tu tutor lo revisará y lo remitirá al Administrador para su publicación.
+                  {filtersActive
+                    ? "Cambia la categoría o limpia los filtros para ver tus demás proyectos."
+                    : <>Ve a la pestaña <span className="text-cyan-500 font-semibold">Sandbox</span> y envía tu primer proyecto. Tu tutor lo revisará y lo remitirá al Administrador para su publicación.</>}
                 </EmptyState>
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {projects.map((p) => (
-                  <ProjectCard key={p.id} project={p} role={user.role} onOpen={setSelected} />
+                {visibleProjects.map((p) => (
+                  <ProjectCard key={p.id} project={p} role={user.role} onOpen={(project) => setSelectedId(project.id)} />
                 ))}
               </div>
             )}
@@ -112,11 +143,8 @@ export function StudentDashboard({ user, onLogout }: { user: UserDTO; onLogout: 
       <ProjectDetailModal
         project={selected}
         user={user}
-        onClose={() => setSelected(null)}
-        onUpdated={(p) => {
-          setProjects((prev) => (prev ?? []).map((x) => (x.id === p.id ? p : x)));
-          setSelected(p);
-        }}
+        onClose={() => setSelectedId(null)}
+        onUpdated={applyUpdated}
       />
     </div>
   );

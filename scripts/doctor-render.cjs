@@ -30,9 +30,51 @@ async function main() {
   if (nodeMajor >= 20) ok(`Node ${process.versions.node}`);
   else bad(`Node ${process.versions.node} es antiguo; usa NODE_VERSION=22.`);
 
-  for (const rel of ["server.js", "package.json", "scripts/migrate-production.cjs", "scripts/production-schema.sql"]) {
+  const requiredFiles = [
+    "server.js",
+    "package.json",
+    "package-lock.json",
+    "tsconfig.json",
+    "next.config.ts",
+    "scripts/migrate-production.cjs",
+    "scripts/production-schema.sql",
+    "src/app/page.tsx",
+    "src/app/layout.tsx",
+    "src/app/globals.css",
+    "src/db/index.ts",
+    "src/db/schema.ts",
+    "src/lib/api-client.ts",
+    "src/lib/project-filters.ts",
+    "src/lib/schema-guard.ts",
+    "src/lib/auth.ts",
+    "src/lib/seed.ts",
+    "src/components/AdminDashboard.tsx",
+    "src/components/useProjectList.ts",
+    "src/components/ProjectFilters.tsx",
+    "src/components/ReportsPanel.tsx",
+    "src/components/AccountsAdmin.tsx",
+    "src/components/AuthView.tsx",
+    "src/components/SandboxPanel.tsx",
+    "src/components/ProjectViews.tsx",
+    "src/components/ui.tsx",
+    "src/components/toast.tsx",
+    "src/components/TopNav.tsx",
+    "src/components/StudentDashboard.tsx",
+    "src/components/TutorDashboard.tsx",
+    "src/components/MetadataFields.tsx",
+    "src/app/api/health/route.ts",
+    "src/app/api/auth/login/route.ts",
+    "src/app/api/auth/register/route.ts",
+    "src/app/api/admin/users/route.ts",
+    "src/app/api/admin/users/[id]/route.ts",
+    "src/app/api/tutors/route.ts",
+    "src/app/api/projects/route.ts",
+    "src/app/api/projects/[id]/route.ts",
+    "src/app/api/projects/[id]/files/route.ts",
+  ];
+  for (const rel of requiredFiles) {
     if (fileExists(rel)) ok(`Archivo presente: ${rel}`);
-    else bad(`Falta ${rel}. Copia la carpeta/archivo completo del parche, no solo server.js.`);
+    else bad(`Falta ${rel}. Descarga y copia el proyecto completo (briana-fuente-completa.zip), no un parche parcial.`);
   }
 
   if (fileExists(".next/BUILD_ID")) ok("Build de Next.js presente (.next/BUILD_ID).");
