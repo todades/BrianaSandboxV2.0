@@ -53,7 +53,7 @@ export function handleError(e: unknown): Response {
     return Response.json(
       {
         error:
-          "La base de datos de producción está desactualizada (falta una columna o tabla). Vuelve a desplegar: el arranque actualiza el esquema automáticamente, o ejecuta node scripts/migrate-production.cjs con DATABASE_URL.",
+          "La base de datos de producción está desactualizada (falta una columna o tabla). BRIANA intenta repararla automáticamente al arrancar, en /api/health y al iniciar sesión. Si el mensaje persiste, abre /api/health para ver qué falta y a qué base estás conectado, o ejecuta node scripts/migrate-production.cjs con DATABASE_URL.",
         schemaOutdated: true,
       },
       { status: 503 }

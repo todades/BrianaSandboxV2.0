@@ -11,6 +11,33 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { Client } = require("pg");
 
+const PLACEHOLDER_DATABASE_HOSTS = new Set([
+  "base",
+  "host",
+  "hostname",
+  "example",
+  "example.com",
+  "tu-host",
+  "tuhost",
+  "tudominio",
+  "ep-xxxx",
+  "ep-xxxx.us-east-2.aws.neon.tech",
+  "xxx",
+  "xxx.neon.tech",
+]);
+
+function databaseHost(connectionString) {
+  try {
+    return new URL(connectionString).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function isPlaceholderDatabaseHost(host) {
+  return PLACEHOLDER_DATABASE_HOSTS.has(String(host || "").toLowerCase());
+}
+
 function sslFor(connectionString) {
   try {
     const url = new URL(connectionString);
@@ -66,4 +93,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { migrateDatabase, sslFor };
+module.exports = { migrateDatabase, sslFor, databaseHost, isPlaceholderDatabaseHost };

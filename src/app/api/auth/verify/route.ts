@@ -4,12 +4,14 @@ import { users } from "@/db/schema";
 import { createSession, handleError, HttpError, toUserDTO } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { consumeCode } from "@/lib/codes";
+import { ensureSchema } from "@/lib/schema-guard";
 
 export const dynamic = "force-dynamic";
 
 /** Confirma el código de 6 dígitos de registro y activa la cuenta (crea la sesión). */
 export async function POST(req: Request) {
   try {
+    await ensureSchema();
     const body = (await req.json()) as { email?: string; code?: string };
     const email = (body.email || "").trim().toLowerCase();
     const code = (body.code || "").trim();
@@ -24,12 +26,12 @@ export async function POST(req: Request) {
         .update(users)
         .set({ emailVerified: true, verifiedAt: new Date() })
         .where(eq(users.id, user.id));
-      await logAudit({ user, action: "Cuenta verificada", entity: "usuario", entityId: user.id });
+      await logAudit({ user, action: "CUENTA_VERIFICADA", entity: "usuario", entityId: user.id });
     }
 
     const [fresh] = await db.select().from(users).where(eq(users.id, user.id)).limit(1);
     const sessionToken = await createSession(fresh);
-    await logAudit({ user: fresh, action: "Inicio de sesión tras verificación", entity: "usuario", entityId: fresh.id, details: { metodo: "verificacion" } });
+    await logAudit({ user: fresh, action: "LOGIN", entity: "usuario", entityId: fresh.id, details: { via: "verificacion" } });
     const payload = { user: toUserDTO(fresh) };
     return Response.json(
       req.headers.get("x-briana-embedded") === "1" ? { ...payload, sessionToken } : payload

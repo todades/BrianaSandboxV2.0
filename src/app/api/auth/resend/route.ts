@@ -4,12 +4,14 @@ import { users } from "@/db/schema";
 import { handleError, HttpError } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { sendCode } from "@/lib/codes";
+import { ensureSchema } from "@/lib/schema-guard";
 
 export const dynamic = "force-dynamic";
 
 /** Reenvía un código de 6 dígitos (verificación o recuperación) respetando el cooldown. */
 export async function POST(req: Request) {
   try {
+    await ensureSchema();
     const body = (await req.json()) as { email?: string; purpose?: string };
     const email = (body.email || "").trim().toLowerCase();
     const purpose = body.purpose === "reset_password" ? "reset_password" : "verify_email";
@@ -36,10 +38,10 @@ export async function POST(req: Request) {
     const dispatch = await sendCode(user, purpose);
     await logAudit({
       user,
-      action: purpose === "verify_email" ? "Código de verificación reenviado" : "Código de recuperación reenviado",
+      action: purpose === "verify_email" ? "CODIGO_VERIFICACION_REENVIADO" : "CODIGO_RECUPERACION_REENVIADO",
       entity: "usuario",
       entityId: user.id,
-      details: { correo: user.email, codigoEnviado: dispatch.delivered },
+      details: { delivered: dispatch.delivered },
     });
     return Response.json(dispatch);
   } catch (e) {

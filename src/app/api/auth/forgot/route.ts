@@ -5,12 +5,14 @@ import { handleError, HttpError } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { sendCode } from "@/lib/codes";
 import { isValidEmailAddress } from "@/lib/validation";
+import { ensureSchema } from "@/lib/schema-guard";
 
 export const dynamic = "force-dynamic";
 
 /** Paso 1 de recuperación: envía un código de 6 dígitos al correo registrado. */
 export async function POST(req: Request) {
   try {
+    await ensureSchema();
     const body = (await req.json()) as { email?: string };
     const email = (body.email || "").trim().toLowerCase();
     if (!isValidEmailAddress(email)) throw new HttpError(400, "Ingresa un correo válido, por ejemplo nombre@gmail.com.");
@@ -34,10 +36,10 @@ export async function POST(req: Request) {
     const dispatch = await sendCode(user, "reset_password");
     await logAudit({
       user,
-      action: "Solicitud de recuperación de contraseña",
+      action: "RECUPERACION_SOLICITADA",
       entity: "usuario",
       entityId: user.id,
-      details: { codigoEnviado: dispatch.delivered },
+      details: { delivered: dispatch.delivered },
     });
     return Response.json({ ok: true, ...dispatch });
   } catch (e) {

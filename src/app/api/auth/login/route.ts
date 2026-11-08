@@ -6,11 +6,13 @@ import { logAudit } from "@/lib/audit";
 import { ensureSystemAccounts } from "@/lib/seed";
 import { sendCode } from "@/lib/codes";
 import type { CodeDispatch } from "@/lib/types";
+import { ensureSchema } from "@/lib/schema-guard";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   try {
+    await ensureSchema();
     const body = (await req.json()) as { email?: string; password?: string };
     const email = (body.email || "").trim().toLowerCase();
     const password = body.password || "";
@@ -21,7 +23,7 @@ export async function POST(req: Request) {
 
     const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
     if (!user || !verifyPassword(password, user.passwordHash)) {
-      await logAudit({ user: null, action: "Intento de inicio de sesión fallido", details: { correo: email } });
+      await logAudit({ user: null, action: "LOGIN_FALLIDO", details: { email } });
       throw new HttpError(401, "Credenciales incorrectas.");
     }
     if (!user.isActive) throw new HttpError(403, "Tu cuenta está deshabilitada. Contacta al administrador institucional.");
@@ -35,7 +37,7 @@ export async function POST(req: Request) {
       } catch (e) {
         note = e instanceof Error ? e.message : null;
       }
-      await logAudit({ user, action: "Intento de acceso sin verificar", entity: "usuario", entityId: user.id });
+      await logAudit({ user, action: "LOGIN_PENDIENTE_VERIFICACION", entity: "usuario", entityId: user.id });
       throw new HttpError(
         403,
         "Tu cuenta aún no ha sido verificada. Introduce el código de 6 dígitos enviado a tu correo.",
@@ -55,7 +57,7 @@ export async function POST(req: Request) {
     }
 
     const sessionToken = await createSession(user);
-    await logAudit({ user, action: "Inicio de sesión", entity: "usuario", entityId: user.id });
+    await logAudit({ user, action: "LOGIN", entity: "usuario", entityId: user.id });
     const payload = { user: toUserDTO(user) };
     // Cookie HttpOnly es el mecanismo normal. Solo en el preview embebido se
     // incluye un token para sessionStorage cuando el navegador bloquea cookies 3P.

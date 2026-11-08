@@ -8,6 +8,7 @@ import { getAdminCredentials } from "@/lib/seed";
 import { sendCode } from "@/lib/codes";
 import type { CodeDispatch } from "@/lib/types";
 import { cedulaValidationError, isValidEmailAddress, phoneValidationError } from "@/lib/validation";
+import { ensureSchema } from "@/lib/schema-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(req: Request) {
   try {
+    await ensureSchema();
     const body = (await req.json()) as Record<string, string>;
     const accountType = (body.accountType || "").toLowerCase();
     const name = (body.name || "").trim();

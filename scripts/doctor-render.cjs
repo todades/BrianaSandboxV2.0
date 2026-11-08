@@ -56,8 +56,12 @@ async function main() {
     try {
       dbUrl = new URL(raw);
       if (!["postgres:", "postgresql:"].includes(dbUrl.protocol)) bad("DATABASE_URL debe empezar por postgresql://");
-      const host = dbUrl.hostname;
+      const host = dbUrl.hostname.toLowerCase();
       const local = ["localhost", "127.0.0.1", "::1"].includes(host);
+      const placeholders = new Set(["base", "host", "hostname", "example", "example.com", "tu-host", "tuhost", "tudominio", "ep-xxxx", "xxx", "xxx.neon.tech"]);
+      if (placeholders.has(host)) {
+        bad(`DATABASE_URL usa el host de ejemplo "${host}". Cámbialo por el host real: ep-...neon.tech (Neon) o dpg-...render.com (Render Postgres).`);
+      }
       if (process.env.RENDER && local) bad("DATABASE_URL apunta a localhost; Render necesita la URL externa de Neon/Render Postgres.");
       ok(`Base de datos destino: ${host}${dbUrl.pathname} (credenciales ocultas)`);
     } catch {
@@ -94,6 +98,9 @@ async function main() {
       }
     } catch (error) {
       bad(`No se pudo conectar/consultar PostgreSQL (${error.code || "sin código"}): ${error.message}`);
+      if (error.code === "ENOTFOUND" || error.code === "EAI_AGAIN") {
+        console.log(`  El host '${dbUrl?.hostname || "desconocido"}' no existe en DNS. Copia la cadena completa desde Neon/Render; no uses "base" ni "host".`);
+      }
       console.log("  Revisa DATABASE_URL, DATABASE_SSL=true y que Neon permita conexiones externas.");
     } finally {
       await client.end().catch(() => {});

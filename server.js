@@ -20,8 +20,10 @@ try {
 }
 
 let migrateDatabase;
+let databaseHost;
+let isPlaceholderDatabaseHost;
 try {
-  ({ migrateDatabase } = require("./scripts/migrate-production.cjs"));
+  ({ migrateDatabase, databaseHost, isPlaceholderDatabaseHost } = require("./scripts/migrate-production.cjs"));
 } catch (error) {
   console.error("[BRIANA] No se pudo cargar scripts/migrate-production.cjs.");
   console.error("[BRIANA] Copia la carpeta scripts completa del parche (migrate-production.cjs y production-schema.sql), no solo server.js.");
@@ -47,6 +49,24 @@ async function prepareDatabase() {
     console.log("[BRIANA] Migración automática omitida por SKIP_AUTO_MIGRATE=true.");
     return;
   }
+
+  const dbHost = databaseHost ? databaseHost(process.env.DATABASE_URL) : null;
+  const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+  if (dbHost && isPlaceholderDatabaseHost && isPlaceholderDatabaseHost(dbHost)) {
+    const error = new Error(
+      `DATABASE_URL usa el host de ejemplo "${dbHost}". No es un servidor real. Copia la cadena completa de Neon (ep-...neon.tech) o la External Database URL de Render Postgres en Render → Environment.`
+    );
+    error.code = "INVALID_DATABASE_HOST";
+    throw error;
+  }
+  if (process.env.RENDER && dbHost && localHosts.has(dbHost)) {
+    const error = new Error(
+      `DATABASE_URL apunta a "${dbHost}". Render no puede usar la base local; usa la URL externa de Neon/Render Postgres.`
+    );
+    error.code = "INVALID_DATABASE_HOST";
+    throw error;
+  }
+
   const attempts = 3;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
@@ -55,6 +75,10 @@ async function prepareDatabase() {
     } catch (error) {
       console.error(`[BRIANA] Intento ${attempt}/${attempts} de actualización de esquema falló.`);
       console.error(`[BRIANA] Código: ${error.code || "sin código"} · Detalle: ${error.message}`);
+      if (error.code === "ENOTFOUND" || error.code === "EAI_AGAIN") {
+        console.error(`[BRIANA] El host de DATABASE_URL no resolvió en DNS: ${dbHost || "desconocido"}.`);
+        console.error('[BRIANA] Corrige DATABASE_URL: el servidor debe ser ep-...neon.tech (Neon) o dpg-...render.com (Render), no "base" ni "host".');
+      }
       if (attempt === attempts) {
         const wrapped = new Error(`No se pudo inicializar PostgreSQL: ${error.message}`);
         wrapped.code = error.code;

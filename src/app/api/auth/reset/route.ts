@@ -4,12 +4,14 @@ import { users } from "@/db/schema";
 import { handleError, hashPassword, HttpError, revokeUserSessions } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { consumeCode } from "@/lib/codes";
+import { ensureSchema } from "@/lib/schema-guard";
 
 export const dynamic = "force-dynamic";
 
 /** Paso 2 de recuperación: valida el código de 6 dígitos y cambia la contraseña. */
 export async function POST(req: Request) {
   try {
+    await ensureSchema();
     const body = (await req.json()) as { email?: string; code?: string; password?: string; confirm?: string };
     const email = (body.email || "").trim().toLowerCase();
     const code = (body.code || "").trim();
@@ -37,7 +39,7 @@ export async function POST(req: Request) {
 
     // Cierra todas las sesiones previas por seguridad.
     await revokeUserSessions(user.id);
-    await logAudit({ user, action: "Contraseña restablecida", entity: "usuario", entityId: user.id });
+    await logAudit({ user, action: "CONTRASENA_RESTABLECIDA", entity: "usuario", entityId: user.id });
 
     return Response.json({ ok: true, message: "Contraseña restablecida. Ya puedes iniciar sesión." });
   } catch (e) {

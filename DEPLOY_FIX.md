@@ -166,3 +166,92 @@ node scripts/doctor-render.cjs --fix
 [BRIANA] Esquema de base de datos verificado/actualizado.
 [BRIANA] Servidor listo en http://0.0.0.0:10000
 ```
+
+---
+
+## 9. Caso exacto: `getaddrinfo ENOTFOUND base`
+
+Si los logs muestran:
+
+```text
+Código: ENOTFOUND · Detalle: getaddrinfo ENOTFOUND base
+```
+
+significa que `DATABASE_URL` tiene como servidor el texto **`base`**. Eso no es
+un servidor real; suele venir de copiar un ejemplo incompleto.
+
+**Arreglo en Render:**
+
+1. Ve a **Render → tu servicio → Environment**.
+2. Edita `DATABASE_URL` y pega la cadena completa de tu base real:
+   - **Neon:** Console → Connect → Connection string (pooled). Debe verse como
+     `postgresql://usuario:clave@ep-xxxx.us-east-2.aws.neon.tech/neondb?sslmode=require`.
+   - **Render Postgres:** Connect → **External Database URL**. Debe verse como
+     `postgresql://usuario:clave@dpg-xxxx-a.oregon-postgres.render.com/base?sslmode=require`.
+3. El host (lo que va entre `@` y la siguiente `/`) debe ser `ep-...neon.tech`
+   o `dpg-...render.com`. **No** debe ser `base`, `host` ni `localhost`.
+4. Mantén `DATABASE_SSL=true`.
+5. Guarda y haz **Manual Deploy → Clear build cache & deploy**.
+
+No basta con cambiar la contraseña: hay que reemplazar la cadena completa.
+
+---
+
+## 10. Caso exacto: “La base de datos de producción está desactualizada”
+
+Si BRIANA abre pero al iniciar sesión muestra:
+
+```text
+La base de datos de producción está desactualizada (falta una columna o tabla).
+```
+
+entonces `DATABASE_URL` ya conecta, pero el esquema de Neon/Render Postgres no
+tiene las columnas nuevas (por ejemplo `users.is_active`).
+
+**Arreglo rápido en Neon:**
+
+1. Neon Console → tu proyecto → **SQL Editor**.
+2. Descarga `neon-fix.sql` o `production-schema.sql` desde `/downloads/`.
+3. Copia todo el SQL, pégalo en el editor y ejecútalo.
+4. Vuelve a BRIANA e inicia sesión.
+
+**Arreglo por Render Shell:**
+
+```bash
+node scripts/migrate-production.cjs
+```
+
+Si el arranque automático no lo hizo, revisa que el Start Command sea
+`node server.js` y que `SKIP_AUTO_MIGRATE` no esté en `true`.
+
+---
+
+## 11. Auto-reparación sin tocar Neon a mano (versión actual)
+
+Desde esta versión, BRIANA aplica el esquema pendiente **sola** contra la misma
+base de `DATABASE_URL`:
+
+- al arrancar (`server.js`);
+- en `GET /api/health`;
+- al iniciar sesión / registrarse / verificar / recuperar.
+
+Por tanto, tras subir estos archivos y redesplegar, **no necesitas pegar SQL en
+Neon**. Basta con abrir:
+
+```text
+https://TU-SERVICIO.onrender.com/api/health
+```
+
+Respuesta esperada:
+
+```json
+{ "ok": true, "adminReady": true, "schema": { "ok": true, "missingTables": [], "missingColumns": [] } }
+```
+
+- `schema.ok: true` → el esquema ya está completo; inicia sesión.
+- `schema.ok: false` → mira `missingTables` / `missingColumns` y `host`.
+  El `host` te dice a qué base se conectó Render; compáralo con el endpoint de
+  Neon donde crees que está tu datos. Si son distintos, corrige `DATABASE_URL`.
+- `schema.error` → muestra el motivo exacto (permisos, SSL, etc.) sin contraseñas.
+
+La auto-reparación es idempotente: no borra datos ni duplica tablas.
