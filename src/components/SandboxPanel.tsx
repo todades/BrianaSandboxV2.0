@@ -257,7 +257,7 @@ export function SandboxPanel({
       const m = result.metadata;
       setMeta((prev) => ({
         ...prev,
-        titulo: m.titulo || prev.titulo,
+        title: m.titulo || prev.title,
         codigo: m.codigo || prev.codigo,
         slug: m.slug || prev.slug,
         tipoRecurso: m.tipoRecurso || prev.tipoRecurso,
@@ -285,7 +285,7 @@ export function SandboxPanel({
     setError(null);
     setSuccess(null);
     if (!pdf) return setError("Sube el PDF del Recurso (documento original).");
-    if (meta.titulo.trim().length < 8) return setError("El Título del Proyecto es obligatorio.");
+    if (meta.title.trim().length < 8) return setError("El Título del Proyecto es obligatorio.");
     if (!meta.tipoRecurso) return setError("Seleccione el Tipo de Recurso.");
     if (!meta.lineaInvestigacion) return setError("Seleccione la Línea de Investigación.");
     if (!meta.autores.trim()) return setError("Indica al menos un autor (separados por ;).");
@@ -307,7 +307,7 @@ export function SandboxPanel({
       setSuccess(project);
       toast.success(
         "¡Proyecto enviado exitosamente!",
-        `«${project.titulo}» fue entregado a ${project.tutorCuenta ?? "tu tutor"}. Puedes seguirlo en «Mis Proyectos Enviados».`
+        `«${project.title}» fue entregado a ${project.tutorCuenta ?? "tu tutor"}. Puedes seguirlo en «Mis Proyectos Enviados».`
       );
       onSubmitted?.(project);
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -389,7 +389,7 @@ export function SandboxPanel({
 
       {success && (
         <Alert tone="success" titulo="¡Proyecto enviado exitosamente al tutor!" onClose={() => setSuccess(null)}>
-          «{success.titulo}» fue entregado a <b>{success.tutorCuenta}</b>. El formulario se ha limpiado para un nuevo
+          «{success.title}» fue entregado a <b>{success.tutorCuenta}</b>. El formulario se ha limpiado para un nuevo
           envío.
         </Alert>
       )}
@@ -481,8 +481,6 @@ export function SandboxPanel({
           </div>
         </div>
       </div>
-
-
     </div>
   );
 }
