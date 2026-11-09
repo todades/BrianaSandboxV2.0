@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  titulo: "BRIANA — Repositorio Académico Institucional",
+  title: "BRIANA — Repositorio Académico Institucional",
   description:
     "Sistema institucional de repositorio académico y extracción de metadatos con IA (PNF Informática).",
 };
