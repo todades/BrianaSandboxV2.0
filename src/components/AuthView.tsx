@@ -662,7 +662,7 @@ export function AuthView({ onAuth }: { onAuth: (user: UserDTO) => void }) {
                     placeholder="04221234567"
                     inputMode="numeric"
                     pattern={VENEZUELAN_MOBILE_HTML_PATTERN}
-                    titulo="Usa un móvil venezolano de 11 dígitos: 0412, 0414, 0416, 0422, 0424 o 0426."
+                    title="Usa un móvil venezolano de 11 dígitos: 0412, 0414, 0416, 0422, 0424 o 0426."
                     maxLength={11}
                     value={phone}
                     onChange={(e) => {
