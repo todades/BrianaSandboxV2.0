@@ -40,7 +40,7 @@ export async function GET() {
     const recent = await db
       .select({
         id: projects.id,
-        titulo: projects.titulo,
+        title: projects.title,
         status: projects.status,
         updatedAt: projects.updatedAt,
         studentName: users.name,

@@ -19,7 +19,7 @@ const REQUIRED_COLUMNS: Record<string, readonly string[]> = {
   sessions: ["id", "user_id", "expires_at", "created_at"],
   files: ["id", "filename", "mime_type", "size", "kind", "data", "uploaded_by", "created_at"],
   projects: [
-    "id", "titulo", "codigo", "slug", "tipo_recurso", "pnf", "linea_investigacion", "autores",
+    "id", "title", "codigo", "slug", "tipo_recurso", "pnf", "linea_investigacion", "autores",
     "tutor_nombre", "tutor_id", "student_id", "anio", "trayecto", "palabras_clave", "resumen",
     "pdf_file_id", "planilla_file_id", "status", "observaciones", "ai_source", "validated_at",
     "published_at", "created_at", "updated_at",

@@ -43,7 +43,7 @@ export async function POST(req: Request) {
     const user = await requireUser(["estudiante"]);
     const form = await req.formData();
 
-    const titulo = str(form, "titulo");
+    const title = str(form, "title");
     const tipoRecurso = str(form, "tipoRecurso");
     const pnf = str(form, "pnf") || "Informática";
     const lineaInvestigacion = str(form, "lineaInvestigacion");
@@ -56,12 +56,12 @@ export async function POST(req: Request) {
     const anioRaw = str(form, "anio");
     const trayecto = str(form, "trayecto");
     const codigo = str(form, "codigo");
-    const slug = str(form, "slug") || slugify(titulo);
+    const slug = str(form, "slug") || slugify(title);
     const palabrasClave = str(form, "palabrasClave");
     const resumen = str(form, "resumen");
     const aiSource = str(form, "aiSource") || null;
 
-    if (titulo.length < 8) throw new HttpError(400, "El título del proyecto es obligatorio.");
+    if (title.length < 8) throw new HttpError(400, "El título del proyecto es obligatorio.");
     if (!(TIPOS_RECURSO as readonly string[]).includes(tipoRecurso))
       throw new HttpError(400, "Selecciona un tipo de recurso válido.");
     if (!(PNFS as readonly string[]).includes(pnf)) throw new HttpError(400, "PNF inválido.");
@@ -134,7 +134,7 @@ export async function POST(req: Request) {
     const [created] = await db
       .insert(projects)
       .values({
-        titulo,
+        title,
         codigo: codigo || null,
         slug,
         tipoRecurso,
@@ -160,7 +160,7 @@ export async function POST(req: Request) {
       action: "PROYECTO_ENVIADO_TUTOR",
       entity: "proyecto",
       entityId: created.id,
-      details: { titulo, tutorId: tutorRow.id, tutor: tutorRow.name, planilla: !!planillaId },
+      details: { title, tutorId: tutorRow.id, tutor: tutorRow.name, planilla: !!planillaId },
     });
 
     const dto = await getProjectDTO(created.id);

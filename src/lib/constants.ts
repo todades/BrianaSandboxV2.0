@@ -33,7 +33,7 @@ export const DEFAULT_TRAYECTO = "Trayecto III";
 
 /* Placeholders exactos del formulario */
 export const PLACEHOLDERS = {
-  titulo: "Ej: Sistema de Gestión Automatizado...",
+  title: "Ej: Sistema de Gestión Automatizado...",
   codigo: "Ej: SCEPNFINF-2025-10",
   slug: "ej-sistema-gestion",
   autores: "Ej: Juan Díaz; María Pérez",

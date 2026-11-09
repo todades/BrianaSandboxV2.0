@@ -60,7 +60,7 @@ const ROLES: Record<string, string> = {
 };
 
 const FIELDS: Record<string, string> = {
-  titulo: "Título del proyecto",
+  title: "Título del proyecto",
   codigo: "Código del proyecto",
   slug: "Dirección del proyecto",
   tipoRecurso: "Tipo de recurso",
@@ -138,8 +138,8 @@ export function describeAudit(actionCode: string, entityCode: string | null, rol
   const role = roleCode ? ROLES[roleCode] ?? readableKey(roleCode) : "—";
   const parts: string[] = [];
 
-  const titulo = text(details.titulo);
-  if (titulo) parts.push(`Proyecto: «${titulo}».`);
+  const title = text(details.title);
+  if (title) parts.push(`Proyecto: «${title}».`);
   const from = statusLabel(details.de);
   const to = statusLabel(details.a);
   if (from && to && from !== to) parts.push(`Estado anterior: ${from}. Estado actual: ${to}.`);

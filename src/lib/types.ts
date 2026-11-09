@@ -15,7 +15,7 @@ export interface UserDTO {
 }
 
 export interface MetadataForm {
-  titulo: string;
+  title: string;
   codigo: string;
   slug: string;
   tipoRecurso: string;
@@ -38,7 +38,7 @@ export interface FileInfo {
 
 export interface ProjectDTO {
   id: number;
-  titulo: string;
+  title: string;
   codigo: string | null;
   slug: string | null;
   tipoRecurso: string;

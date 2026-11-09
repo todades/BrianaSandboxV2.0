@@ -283,7 +283,7 @@ body {
 /* ------------------------------------------------------------------ */
 /* Títulos de sección del formulario                                   */
 /* ------------------------------------------------------------------ */
-.section-titulo {
+.section-title {
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -293,4 +293,4 @@ body {
   text-transform: uppercase;
   color: #38bdf8;
 }
-.section-titulo::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.section-title::after { content: ""; flex: 1; height: 1px; background: var(--line); }

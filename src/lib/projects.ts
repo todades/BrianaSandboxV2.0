@@ -38,7 +38,7 @@ function toDTO(r: Row): ProjectDTO {
   const p = r.project;
   return {
     id: p.id,
-    titulo: p.titulo,
+    title: p.title,
     codigo: p.codigo,
     slug: p.slug,
     tipoRecurso: p.tipoRecurso,

@@ -105,12 +105,12 @@ function normalizeTrayecto(v: unknown): string {
 }
 
 export function normalizeMetadata(raw: Record<string, unknown>): Partial<MetadataForm> {
-  const titulo = String(raw.titulo ?? raw.titulo ?? "").trim();
+  const title = String(raw.title ?? raw.title ?? "").trim();
   const anioRaw = String(raw.anio ?? raw.year ?? "").match(/(19|20)\d{2}/)?.[0] ?? "";
   const out: Partial<MetadataForm> = {
-    titulo,
+    title,
     codigo: String(raw.codigo ?? "").trim(),
-    slug: String(raw.slug ?? "").trim() || (titulo ? slugify(titulo) : ""),
+    slug: String(raw.slug ?? "").trim() || (title ? slugify(title) : ""),
     tipoRecurso: closest(raw.tipo_recurso ?? raw.tipoRecurso, TIPOS_RECURSO, TIPOS_RECURSO[0]),
     pnf: "Informática",
     lineaInvestigacion: closest(
@@ -135,7 +135,7 @@ const PROMPT = `Eres un bibliotecólogo experto de una universidad politécnica 
 Analiza el documento académico adjunto (tesis, proyecto socio-tecnológico, trabajo especial de grado, pasantía, artículo o servicio comunitario) y extrae sus metadatos.
 Responde ÚNICAMENTE con un objeto JSON válido con exactamente estas claves:
 {
-  "titulo": "título completo del trabajo",
+  "title": "título completo del trabajo",
   "codigo": "código del proyecto si aparece, si no cadena vacía",
   "tipo_recurso": "una de: ${TIPOS_RECURSO.join(" | ")}",
   "linea_investigacion": "una de: ${LINEAS_INVESTIGACION.join(" | ")}",
@@ -287,7 +287,7 @@ export function heuristicExtract(buffer: Buffer, filename: string): Partial<Meta
     .filter((l) => l.length > 2);
 
   // --- Título: bloque de líneas en mayúsculas al inicio del documento
-  let titulo = "";
+  let title = "";
   const head = lines.slice(0, 80);
   const isUpper = (l: string) => l.length >= 15 && l === l.toUpperCase() && /[A-ZÁÉÍÓÚÑ]{3,}/.test(l);
   const skip =
@@ -302,14 +302,14 @@ export function heuristicExtract(buffer: Buffer, filename: string): Partial<Meta
     }
   }
   if (cur.join(" ").length > bestBlock.join(" ").length) bestBlock = cur;
-  if (bestBlock.length) titulo = bestBlock.slice(0, 5).join(" ");
-  if (!titulo) {
+  if (bestBlock.length) title = bestBlock.slice(0, 5).join(" ");
+  if (!title) {
     const longest = head.filter((l) => !skip.test(l)).sort((a, b) => b.length - a.length)[0];
-    titulo = longest && longest.length > 20 ? longest : titleFromFilename(filename);
+    title = longest && longest.length > 20 ? longest : titleFromFilename(filename);
   }
-  titulo = titulo.replace(/\s{2,}/g, " ").trim();
-  if (titulo === titulo.toUpperCase() && titulo.length > 0) {
-    titulo = titulo.charAt(0) + titulo.slice(1).toLowerCase();
+  title = title.replace(/\s{2,}/g, " ").trim();
+  if (title === title.toUpperCase() && title.length > 0) {
+    title = title.charAt(0) + title.slice(1).toLowerCase();
   }
 
   // --- Año
@@ -394,9 +394,9 @@ export function heuristicExtract(buffer: Buffer, filename: string): Partial<Meta
   const codigo = text.match(/C[oó]digo\s*(?:del\s+proyecto)?\s*[:\-–]?\s*([A-Z0-9][A-Z0-9\-\/]{3,20})/i)?.[1] ?? "";
 
   return {
-    titulo,
+    title,
     codigo,
-    slug: slugify(titulo),
+    slug: slugify(title),
     tipoRecurso,
     pnf: "Informática",
     lineaInvestigacion,

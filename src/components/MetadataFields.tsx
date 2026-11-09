@@ -26,7 +26,7 @@ export interface TutorOption {
 
 export function emptyMetadata(defaults?: Partial<MetadataForm>): MetadataForm {
   return {
-    titulo: "",
+    title: "",
     codigo: "",
     slug: "",
     tipoRecurso: "",
@@ -43,10 +43,10 @@ export function emptyMetadata(defaults?: Partial<MetadataForm>): MetadataForm {
   };
 }
 
-export function FormSection({ titulo, children }: { titulo: string; children: ReactNode }) {
+export function FormSection({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="space-y-4">
-      <h3 className="section-titulo">{titulo}</h3>
+      <h3 className="section-title">{title}</h3>
       {children}
     </section>
   );
@@ -109,21 +109,21 @@ export function MetadataFields({
   return (
     <div className="space-y-8">
       {/* ===================== TÍTULO DEL PROYECTO ===================== */}
-      <FormSection titulo="Título del Proyecto">
+      <FormSection title="Título del Proyecto">
         <Field label="Título del Proyecto (Obligatorio)" required>
           <textarea
             className="textarea-base"
             rows={3}
-            placeholder={PLACEHOLDERS.titulo}
-            value={value.titulo}
-            onChange={(e) => set("titulo", e.target.value)}
+            placeholder={PLACEHOLDERS.title}
+            value={value.title}
+            onChange={(e) => set("title", e.target.value)}
             disabled={disabled}
           />
         </Field>
       </FormSection>
 
       {/* ===================== IDENTIFICACIÓN Y CLASIFICACIÓN ===================== */}
-      <FormSection titulo="Identificación y Clasificación">
+      <FormSection title="Identificación y Clasificación">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field label="Código del Proyecto">
             <input
@@ -147,9 +147,9 @@ export function MetadataFields({
               </div>
               <button
                 type="button"
-                disabled={disabled || !value.titulo}
-                onClick={() => set("slug", slugify(value.titulo))}
-                titulo="Generar slug desde el título"
+                disabled={disabled || !value.title}
+                onClick={() => set("slug", slugify(value.title))}
+                title="Generar slug desde el título"
                 className="px-3 rounded-lg border border-line text-muted hover:text-cyan-500 hover:border-cyan-500/50 disabled:opacity-50"
               >
                 <Wand2 size={15} />
@@ -201,7 +201,7 @@ export function MetadataFields({
       </FormSection>
 
       {/* ===================== AUTORÍA Y TUTORÍA ===================== */}
-      <FormSection titulo="Autoría y Tutoría">
+      <FormSection title="Autoría y Tutoría">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field label="Autores (Lista / Array)" required hint="Separados por punto y coma ( ; )">
             <input
@@ -301,7 +301,7 @@ export function MetadataFields({
       </FormSection>
 
       {/* ===================== DETALLES ACADÉMICOS ===================== */}
-      <FormSection titulo="Detalles Académicos">
+      <FormSection title="Detalles Académicos">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field label="Año de Publicación">
             <input
@@ -332,7 +332,7 @@ export function MetadataFields({
       </FormSection>
 
       {/* ===================== ARCHIVOS ADJUNTOS ===================== */}
-      {filesSection && <FormSection titulo="Archivos Adjuntos">{filesSection}</FormSection>}
+      {filesSection && <FormSection title="Archivos Adjuntos">{filesSection}</FormSection>}
 
       {/* ===================== DESCRIPTORES OPCIONALES (IA) ===================== */}
       <section className="rounded-xl border border-line bg-card2">

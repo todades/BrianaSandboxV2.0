@@ -121,7 +121,7 @@ export const projects = pgTable(
   "projects",
   {
     id: serial("id").primaryKey(),
-    titulo: text("titulo").notNull(),
+    title: text("title").notNull(),
     codigo: varchar("codigo", { length: 100 }),
     slug: varchar("slug", { length: 255 }),
     tipoRecurso: text("tipo_recurso").notNull(),

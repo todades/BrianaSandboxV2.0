@@ -39,7 +39,7 @@ export async function DELETE(_req: Request, ctx: Ctx) {
 
     const deleted = await db.transaction(async (tx) => {
       const [current] = await tx
-        .select({ titulo: projects.titulo, pdfFileId: projects.pdfFileId, planillaFileId: projects.planillaFileId })
+        .select({ title: projects.title, pdfFileId: projects.pdfFileId, planillaFileId: projects.planillaFileId })
         .from(projects)
         .where(eq(projects.id, projectId))
         .limit(1);
@@ -61,7 +61,7 @@ export async function DELETE(_req: Request, ctx: Ctx) {
         }
       }
 
-      return { titulo: current.titulo, removedFiles };
+      return { title: current.title, removedFiles };
     });
 
     await logAudit({
@@ -69,10 +69,10 @@ export async function DELETE(_req: Request, ctx: Ctx) {
       action: "PROYECTO_ELIMINADO",
       entity: "proyecto",
       entityId: projectId,
-      details: { titulo: deleted.titulo, archivosEliminados: deleted.removedFiles },
+      details: { title: deleted.title, archivosEliminados: deleted.removedFiles },
     });
 
-    return Response.json({ ok: true, id: projectId, titulo: deleted.titulo, archivosEliminados: deleted.removedFiles });
+    return Response.json({ ok: true, id: projectId, title: deleted.title, archivosEliminados: deleted.removedFiles });
   } catch (e) {
     return handleError(e);
   }
@@ -135,12 +135,12 @@ export async function PATCH(req: Request, ctx: Ctx) {
 
     if (Object.keys(md).length > 0) {
       if (!canEdit) throw new HttpError(403, "El proyecto no puede editarse en su estado actual por tu rol.");
-      if (md.titulo !== undefined) {
-        if (md.titulo.trim().length < 8) throw new HttpError(400, "El título es obligatorio.");
-        updates.titulo = md.titulo.trim();
+      if (md.title !== undefined) {
+        if (md.title.trim().length < 8) throw new HttpError(400, "El título es obligatorio.");
+        updates.title = md.title.trim();
       }
       if (md.codigo !== undefined) updates.codigo = md.codigo.trim() || null;
-      if (md.slug !== undefined) updates.slug = md.slug.trim() || slugify(updates.titulo ?? current.titulo);
+      if (md.slug !== undefined) updates.slug = md.slug.trim() || slugify(updates.title ?? current.title);
       if (md.tipoRecurso !== undefined) {
         if (!(TIPOS_RECURSO as readonly string[]).includes(md.tipoRecurso))
           throw new HttpError(400, "Tipo de recurso inválido.");

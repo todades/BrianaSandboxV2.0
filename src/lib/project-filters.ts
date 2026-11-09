@@ -62,7 +62,7 @@ export function matchesProjectSearch(project: ProjectDTO, search: string): boole
   const q = search.trim().toLocaleLowerCase("es");
   if (!q) return true;
   return [
-    project.titulo,
+    project.title,
     project.codigo ?? "",
     project.studentName ?? "",
     project.tutorCuenta ?? "",

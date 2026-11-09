@@ -349,7 +349,7 @@ ALTER TABLE public.files ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NUL
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.projects (
   id serial PRIMARY KEY,
-  titulo text NOT NULL,
+  title text NOT NULL,
   codigo varchar(100),
   slug varchar(255),
   tipo_recurso text NOT NULL,
@@ -374,7 +374,7 @@ CREATE TABLE IF NOT EXISTS public.projects (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS titulo text NOT NULL DEFAULT '';
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS title text NOT NULL DEFAULT '';
 ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS codigo varchar(100);
 ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS slug varchar(255);
 ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS tipo_recurso text NOT NULL DEFAULT '';
