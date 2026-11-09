@@ -28,7 +28,7 @@ export function TopNav({ user, onLogout }: { user: UserDTO; onLogout: () => void
           </div>
           <button
             onClick={onLogout}
-            titulo="Cerrar sesión"
+            title="Cerrar sesión"
             aria-label="Cerrar sesión"
             className="w-10 h-10 rounded-lg bg-card2 border border-line flex items-center justify-center text-muted hover:text-red-500 hover:border-red-500/40 transition"
           >
