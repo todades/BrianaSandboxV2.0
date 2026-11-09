@@ -138,8 +138,8 @@ export function describeAudit(actionCode: string, entityCode: string | null, rol
   const role = roleCode ? ROLES[roleCode] ?? readableKey(roleCode) : "—";
   const parts: string[] = [];
 
-  const title = text(details.titulo);
-  if (title) parts.push(`Proyecto: «${title}».`);
+  const titulo = text(details.titulo);
+  if (titulo) parts.push(`Proyecto: «${titulo}».`);
   const from = statusLabel(details.de);
   const to = statusLabel(details.a);
   if (from && to && from !== to) parts.push(`Estado anterior: ${from}. Estado actual: ${to}.`);

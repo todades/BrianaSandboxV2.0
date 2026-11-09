@@ -381,14 +381,14 @@ export function SandboxPanel({
       />
 
       {!isStudent && (
-        <Alert tone="warning" title="Sandbox en modo de pruebas">
+        <Alert tone="warning" titulo="Sandbox en modo de pruebas">
           Solo el rol <b>Estudiante</b> puede enviar proyectos al flujo institucional. Como {user.role} puedes
           probar la extracción de metadatos con IA sin generar envíos.
         </Alert>
       )}
 
       {success && (
-        <Alert tone="success" title="¡Proyecto enviado exitosamente al tutor!" onClose={() => setSuccess(null)}>
+        <Alert tone="success" titulo="¡Proyecto enviado exitosamente al tutor!" onClose={() => setSuccess(null)}>
           «{success.titulo}» fue entregado a <b>{success.tutorCuenta}</b>. El formulario se ha limpiado para un nuevo
           envío.
         </Alert>
@@ -434,7 +434,7 @@ export function SandboxPanel({
           {extraction && (
             <Alert
               tone={extraction.source === "gemini" ? "success" : "info"}
-              title={
+              titulo={
                 extraction.source === "gemini"
                   ? `Metadatos extraídos con Gemini (${extraction.model ?? "IA"})`
                   : "Metadatos extraídos con el analizador heurístico local"

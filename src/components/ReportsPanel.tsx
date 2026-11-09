@@ -36,12 +36,12 @@ type ReportSelection =
   | { kind: "ai"; label: string };
 
 function Bars({
-  title,
+  titulo,
   rows,
   selectedKey,
   onSelect,
 }: {
-  title: string;
+  titulo: string;
   rows: { key: string; total: number; label?: string }[];
   selectedKey?: string | null;
   onSelect: (key: string, label: string) => void;
@@ -49,7 +49,7 @@ function Bars({
   const max = Math.max(1, ...rows.map((r) => r.total));
   return (
     <div className="card p-5">
-      <h3 className="text-sm font-bold text-ink">{title}</h3>
+      <h3 className="text-sm font-bold text-ink">{titulo}</h3>
       <p className="text-xs text-muted mt-1 mb-4">Pulsa una categoría para filtrar.</p>
       {rows.length === 0 ? (
         <p className="text-xs text-muted2">Sin datos todavía.</p>
@@ -236,7 +236,7 @@ export function ReportsPanel({ user }: { user: UserDTO }) {
             <>
               {projectError && <Alert tone="error">{projectError}</Alert>}
               {projects === null ? <Spinner /> : filteredProjects.length === 0 ? (
-                <EmptyState icon={<BookOpen size={32} />} title="No hay proyectos en esta categoría" />
+                <EmptyState icon={<BookOpen size={32} />} titulo="No hay proyectos en esta categoría" />
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   {filteredProjects.map((p) => <ProjectCard key={p.id} project={p} role={user.role} showFiles={false} onOpen={(project) => setSelectedProjectId(project.id)} />)}
@@ -249,7 +249,7 @@ export function ReportsPanel({ user }: { user: UserDTO }) {
             <>
               {usersError && <Alert tone="error">{usersError}</Alert>}
               {usersLoading && users === null ? <Spinner /> : filteredUsers.length === 0 ? (
-                <EmptyState icon={<Users size={32} />} title="No hay cuentas en esta categoría" />
+                <EmptyState icon={<Users size={32} />} titulo="No hay cuentas en esta categoría" />
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -276,7 +276,7 @@ export function ReportsPanel({ user }: { user: UserDTO }) {
             <>
               {auditError && <Alert tone="error">{auditError}</Alert>}
               {auditLoading && auditLogs === null ? <Spinner /> : auditLogs?.length === 0 ? (
-                <EmptyState icon={<Bot size={32} />} title="Todavía no hay consultas de IA registradas" />
+                <EmptyState icon={<Bot size={32} />} titulo="Todavía no hay consultas de IA registradas" />
               ) : (
                 <div className="divide-y divide-line">
                   {(auditLogs ?? []).map((log) => {
@@ -306,13 +306,13 @@ export function ReportsPanel({ user }: { user: UserDTO }) {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Bars title="Proyectos por estado" rows={data.byStatus.map((r) => ({ ...r, label: STATUS_META[r.key as ProjectStatus]?.label ?? r.key }))} selectedKey={projectSelected("status", selection?.kind === "projects" && selection.filter.field === "status" ? selection.filter.value : "")} onSelect={(key, label) => selectProjects("status", key, `Estado: ${label}`)} />
-        <Bars title="Proyectos por línea de investigación" rows={data.byLinea} selectedKey={selection?.kind === "projects" && selection.filter.field === "lineaInvestigacion" ? selection.filter.value : null} onSelect={(key) => selectProjects("lineaInvestigacion", key)} />
-        <Bars title="Proyectos por tipo de recurso" rows={data.byTipo} selectedKey={selection?.kind === "projects" && selection.filter.field === "tipoRecurso" ? selection.filter.value : null} onSelect={(key) => selectProjects("tipoRecurso", key)} />
-        <Bars title="Proyectos por trayecto" rows={data.byTrayecto} selectedKey={selection?.kind === "projects" && selection.filter.field === "trayecto" ? selection.filter.value : null} onSelect={(key) => selectProjects("trayecto", key)} />
-        <Bars title="Proyectos por año de publicación" rows={data.byAnio} selectedKey={selection?.kind === "projects" && selection.filter.field === "anio" ? selection.filter.value : null} onSelect={(key) => selectProjects("anio", key)} />
-        <Bars title="Carga de proyectos por tutor" rows={data.tutorsLoad.map((t) => ({ key: String(t.id), total: t.total, label: `${t.name} (${t.email})` }))} selectedKey={selection?.kind === "projects" && selection.filter.field === "tutorId" ? selection.filter.value : null} onSelect={(key, label) => selectProjects("tutorId", key, `Tutor: ${label}`)} />
-        <Bars title="Usuarios por rol" rows={data.usersByRole.map((u) => ({ key: u.role, total: u.total, label: ROLE_LABEL[u.role as Role] ?? u.role }))} selectedKey={selection?.kind === "users" ? selection.role : null} onSelect={(key, label) => selectUsers(key as Role, `Cuentas: ${label}`)} />
+        <Bars titulo="Proyectos por estado" rows={data.byStatus.map((r) => ({ ...r, label: STATUS_META[r.key as ProjectStatus]?.label ?? r.key }))} selectedKey={projectSelected("status", selection?.kind === "projects" && selection.filter.field === "status" ? selection.filter.value : "")} onSelect={(key, label) => selectProjects("status", key, `Estado: ${label}`)} />
+        <Bars titulo="Proyectos por línea de investigación" rows={data.byLinea} selectedKey={selection?.kind === "projects" && selection.filter.field === "lineaInvestigacion" ? selection.filter.value : null} onSelect={(key) => selectProjects("lineaInvestigacion", key)} />
+        <Bars titulo="Proyectos por tipo de recurso" rows={data.byTipo} selectedKey={selection?.kind === "projects" && selection.filter.field === "tipoRecurso" ? selection.filter.value : null} onSelect={(key) => selectProjects("tipoRecurso", key)} />
+        <Bars titulo="Proyectos por trayecto" rows={data.byTrayecto} selectedKey={selection?.kind === "projects" && selection.filter.field === "trayecto" ? selection.filter.value : null} onSelect={(key) => selectProjects("trayecto", key)} />
+        <Bars titulo="Proyectos por año de publicación" rows={data.byAnio} selectedKey={selection?.kind === "projects" && selection.filter.field === "anio" ? selection.filter.value : null} onSelect={(key) => selectProjects("anio", key)} />
+        <Bars titulo="Carga de proyectos por tutor" rows={data.tutorsLoad.map((t) => ({ key: String(t.id), total: t.total, label: `${t.name} (${t.email})` }))} selectedKey={selection?.kind === "projects" && selection.filter.field === "tutorId" ? selection.filter.value : null} onSelect={(key, label) => selectProjects("tutorId", key, `Tutor: ${label}`)} />
+        <Bars titulo="Usuarios por rol" rows={data.usersByRole.map((u) => ({ key: u.role, total: u.total, label: ROLE_LABEL[u.role as Role] ?? u.role }))} selectedKey={selection?.kind === "users" ? selection.role : null} onSelect={(key, label) => selectUsers(key as Role, `Cuentas: ${label}`)} />
         <div className="card p-5">
           <h3 className="text-sm font-bold text-ink mb-4">Actividad reciente</h3>
           {data.recent.length === 0 ? <p className="text-xs text-muted2">Sin proyectos registrados.</p> : (

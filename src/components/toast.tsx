@@ -8,16 +8,16 @@ type Tone = "success" | "error" | "info" | "warning";
 interface ToastItem {
   id: number;
   tone: Tone;
-  title: string;
+  titulo: string;
   message?: string;
 }
 
 interface ToastApi {
-  show: (t: { tone?: Tone; title: string; message?: string; duration?: number }) => void;
-  success: (title: string, message?: string) => void;
-  error: (title: string, message?: string) => void;
-  info: (title: string, message?: string) => void;
-  warning: (title: string, message?: string) => void;
+  show: (t: { tone?: Tone; titulo: string; message?: string; duration?: number }) => void;
+  success: (titulo: string, message?: string) => void;
+  error: (titulo: string, message?: string) => void;
+  info: (titulo: string, message?: string) => void;
+  warning: (titulo: string, message?: string) => void;
 }
 
 const ToastContext = createContext<ToastApi | null>(null);
@@ -47,7 +47,7 @@ function ToastCard({ item, onClose }: { item: ToastItem; onClose: () => void }) 
         <Icon size={20} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-bold text-ink leading-snug">{item.title}</p>
+        <p className="text-sm font-bold text-ink leading-snug">{item.titulo}</p>
         {item.message && <p className="text-xs text-muted mt-1 leading-relaxed break-words">{item.message}</p>}
       </div>
       <button
@@ -70,9 +70,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const show = useCallback<ToastApi["show"]>(
-    ({ tone = "info", title, message, duration = 6000 }) => {
+    ({ tone = "info", titulo, message, duration = 6000 }) => {
       const id = ++idRef.current;
-      setItems((prev) => [...prev.slice(-4), { id, tone, title, message }]);
+      setItems((prev) => [...prev.slice(-4), { id, tone, titulo, message }]);
       if (duration > 0) setTimeout(() => dismiss(id), duration);
     },
     [dismiss]
@@ -81,10 +81,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const api = useMemo<ToastApi>(
     () => ({
       show,
-      success: (title, message) => show({ tone: "success", title, message }),
-      error: (title, message) => show({ tone: "error", title, message, duration: 8000 }),
-      info: (title, message) => show({ tone: "info", title, message }),
-      warning: (title, message) => show({ tone: "warning", title, message, duration: 8000 }),
+      success: (titulo, message) => show({ tone: "success", titulo, message }),
+      error: (titulo, message) => show({ tone: "error", titulo, message, duration: 8000 }),
+      info: (titulo, message) => show({ tone: "info", titulo, message }),
+      warning: (titulo, message) => show({ tone: "warning", titulo, message, duration: 8000 }),
     }),
     [show]
   );

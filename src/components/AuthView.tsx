@@ -157,7 +157,7 @@ function DispatchStatus({ d, onUseCode }: { d: CodeDispatch; onUseCode: (code: s
   return (
     <div className="space-y-2">
       {d.devCode ? (
-        <Alert tone="warning" title="Modo desarrollo: servidor SMTP no configurado">
+        <Alert tone="warning" titulo="Modo desarrollo: servidor SMTP no configurado">
           El correo no se envió porque faltan <code className="font-mono">EMAIL_USER / EMAIL_PASS</code>. Tu código
           de prueba es{" "}
           <b className="font-mono text-base tracking-[0.3em] text-ink">{d.devCode}</b>
@@ -172,11 +172,11 @@ function DispatchStatus({ d, onUseCode }: { d: CodeDispatch; onUseCode: (code: s
           </div>
         </Alert>
       ) : d.delivered ? (
-        <Alert tone="success" title="Código enviado">
+        <Alert tone="success" titulo="Código enviado">
           Revisa la bandeja de entrada de <b>{d.email}</b> (y la carpeta de spam).
         </Alert>
       ) : d.mailError ? (
-        <Alert tone="error" title="No se pudo enviar el correo">
+        <Alert tone="error" titulo="No se pudo enviar el correo">
           {d.mailError} Puedes intentarlo de nuevo con «Reenviar código».
         </Alert>
       ) : d.note ? (
@@ -482,21 +482,21 @@ export function AuthView({ onAuth }: { onAuth: (user: UserDTO) => void }) {
   );
 
   const isTabView = view === "login" || view === "register";
-  const headerTitle: Record<View, { title: string; subtitle: string; icon: typeof MailCheck }> = {
-    login: { title: "", subtitle: "", icon: MailCheck },
-    register: { title: "", subtitle: "", icon: MailCheck },
+  const headerTitle: Record<View, { titulo: string; subtitle: string; icon: typeof MailCheck }> = {
+    login: { titulo: "", subtitle: "", icon: MailCheck },
+    register: { titulo: "", subtitle: "", icon: MailCheck },
     verify: {
-      title: "Confirma tu correo",
+      titulo: "Confirma tu correo",
       subtitle: `Introduce el código de 6 dígitos enviado a ${dispatch?.email || email}.`,
       icon: MailCheck,
     },
     forgot: {
-      title: "Recuperar contraseña",
+      titulo: "Recuperar contraseña",
       subtitle: "Te enviaremos un código de 6 dígitos para autorizar el cambio seguro de tu contraseña.",
       icon: KeyRound,
     },
     reset: {
-      title: "Nueva contraseña",
+      titulo: "Nueva contraseña",
       subtitle: `Código enviado a ${dispatch?.email || email}. Introdúcelo junto con tu nueva contraseña.`,
       icon: KeyRound,
     },
@@ -555,7 +555,7 @@ export function AuthView({ onAuth }: { onAuth: (user: UserDTO) => void }) {
                   );
                 })()}
                 <div>
-                  <h2 className="text-lg font-bold text-ink leading-tight">{headerTitle[view].title}</h2>
+                  <h2 className="text-lg font-bold text-ink leading-tight">{headerTitle[view].titulo}</h2>
                   <p className="text-xs text-muted mt-1 leading-relaxed">{headerTitle[view].subtitle}</p>
                 </div>
               </div>
@@ -662,7 +662,7 @@ export function AuthView({ onAuth }: { onAuth: (user: UserDTO) => void }) {
                     placeholder="04221234567"
                     inputMode="numeric"
                     pattern={VENEZUELAN_MOBILE_HTML_PATTERN}
-                    title="Usa un móvil venezolano de 11 dígitos: 0412, 0414, 0416, 0422, 0424 o 0426."
+                    titulo="Usa un móvil venezolano de 11 dígitos: 0412, 0414, 0416, 0422, 0424 o 0426."
                     maxLength={11}
                     value={phone}
                     onChange={(e) => {

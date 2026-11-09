@@ -43,10 +43,10 @@ export function emptyMetadata(defaults?: Partial<MetadataForm>): MetadataForm {
   };
 }
 
-export function FormSection({ title, children }: { title: string; children: ReactNode }) {
+export function FormSection({ titulo, children }: { titulo: string; children: ReactNode }) {
   return (
     <section className="space-y-4">
-      <h3 className="section-title">{title}</h3>
+      <h3 className="section-titulo">{titulo}</h3>
       {children}
     </section>
   );
@@ -109,7 +109,7 @@ export function MetadataFields({
   return (
     <div className="space-y-8">
       {/* ===================== TÍTULO DEL PROYECTO ===================== */}
-      <FormSection title="Título del Proyecto">
+      <FormSection titulo="Título del Proyecto">
         <Field label="Título del Proyecto (Obligatorio)" required>
           <textarea
             className="textarea-base"
@@ -123,7 +123,7 @@ export function MetadataFields({
       </FormSection>
 
       {/* ===================== IDENTIFICACIÓN Y CLASIFICACIÓN ===================== */}
-      <FormSection title="Identificación y Clasificación">
+      <FormSection titulo="Identificación y Clasificación">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field label="Código del Proyecto">
             <input
@@ -149,7 +149,7 @@ export function MetadataFields({
                 type="button"
                 disabled={disabled || !value.titulo}
                 onClick={() => set("slug", slugify(value.titulo))}
-                title="Generar slug desde el título"
+                titulo="Generar slug desde el título"
                 className="px-3 rounded-lg border border-line text-muted hover:text-cyan-500 hover:border-cyan-500/50 disabled:opacity-50"
               >
                 <Wand2 size={15} />
@@ -201,7 +201,7 @@ export function MetadataFields({
       </FormSection>
 
       {/* ===================== AUTORÍA Y TUTORÍA ===================== */}
-      <FormSection title="Autoría y Tutoría">
+      <FormSection titulo="Autoría y Tutoría">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field label="Autores (Lista / Array)" required hint="Separados por punto y coma ( ; )">
             <input
@@ -301,7 +301,7 @@ export function MetadataFields({
       </FormSection>
 
       {/* ===================== DETALLES ACADÉMICOS ===================== */}
-      <FormSection title="Detalles Académicos">
+      <FormSection titulo="Detalles Académicos">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field label="Año de Publicación">
             <input
@@ -332,7 +332,7 @@ export function MetadataFields({
       </FormSection>
 
       {/* ===================== ARCHIVOS ADJUNTOS ===================== */}
-      {filesSection && <FormSection title="Archivos Adjuntos">{filesSection}</FormSection>}
+      {filesSection && <FormSection titulo="Archivos Adjuntos">{filesSection}</FormSection>}
 
       {/* ===================== DESCRIPTORES OPCIONALES (IA) ===================== */}
       <section className="rounded-xl border border-line bg-card2">

@@ -105,7 +105,7 @@ function normalizeTrayecto(v: unknown): string {
 }
 
 export function normalizeMetadata(raw: Record<string, unknown>): Partial<MetadataForm> {
-  const titulo = String(raw.titulo ?? raw.title ?? "").trim();
+  const titulo = String(raw.titulo ?? raw.titulo ?? "").trim();
   const anioRaw = String(raw.anio ?? raw.year ?? "").match(/(19|20)\d{2}/)?.[0] ?? "";
   const out: Partial<MetadataForm> = {
     titulo,

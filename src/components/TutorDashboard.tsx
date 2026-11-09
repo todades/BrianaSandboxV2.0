@@ -88,7 +88,7 @@ export function TutorDashboard({ user, onLogout }: { user: UserDTO; onLogout: ()
             <div className="card p-8 md:p-10">
               <EmptyState
                 icon={tab === "bandeja" ? <Inbox size={38} /> : <History size={38} />}
-                title={filtersActive ? "No hay coincidencias" : tab === "bandeja" ? "Tu bandeja está vacía" : "Sin historial todavía"}
+                titulo={filtersActive ? "No hay coincidencias" : tab === "bandeja" ? "Tu bandeja está vacía" : "Sin historial todavía"}
               >
                 {filtersActive
                   ? "Prueba con otra categoría, título, código o nombre de estudiante."

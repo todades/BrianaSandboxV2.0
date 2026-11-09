@@ -70,14 +70,14 @@ export function ThemeToggle({
     <button
       type="button"
       onClick={toggle}
-      title="Alternar modo claro / oscuro"
+      titulo="Alternar modo claro / oscuro"
       aria-label="Cambiar tema"
       className={`${position} w-11 h-11 rounded-full bg-card2 border border-line shadow-lg flex items-center justify-center text-muted hover:text-cyan-500 hover:border-cyan-500/60 hover:scale-105 transition`}
     >
-      <span className="hidden dark:block" title="Cambiar a modo claro">
+      <span className="hidden dark:block" titulo="Cambiar a modo claro">
         <Sun size={18} />
       </span>
-      <span className="block dark:hidden" title="Cambiar a modo oscuro">
+      <span className="block dark:hidden" titulo="Cambiar a modo oscuro">
         <Moon size={18} />
       </span>
     </button>
@@ -255,12 +255,12 @@ export function StatusBadge({ status, long = false }: { status: ProjectStatus; l
 /* ------------------------------------------------------------------ */
 export function Alert({
   tone = "info",
-  title,
+  titulo,
   children,
   onClose,
 }: {
   tone?: "info" | "success" | "error" | "warning";
-  title?: string;
+  titulo?: string;
   children?: ReactNode;
   onClose?: () => void;
 }) {
@@ -281,8 +281,8 @@ export function Alert({
     <div className={`fade-in flex items-start gap-2.5 px-4 py-3 rounded-lg border text-sm ${map.cls}`}>
       <Icon size={17} className="mt-0.5 flex-shrink-0" />
       <div className="flex-1 min-w-0">
-        {title && <p className="font-semibold">{title}</p>}
-        {children && <div className={`${title ? "text-xs mt-0.5 opacity-90" : ""} break-words`}>{children}</div>}
+        {titulo && <p className="font-semibold">{titulo}</p>}
+        {children && <div className={`${titulo ? "text-xs mt-0.5 opacity-90" : ""} break-words`}>{children}</div>}
       </div>
       {onClose && (
         <button onClick={onClose} className="opacity-60 hover:opacity-100" aria-label="Cerrar">
@@ -299,7 +299,7 @@ export function Alert({
 export function Modal({
   open,
   onClose,
-  title,
+  titulo,
   subtitle,
   children,
   wide = false,
@@ -307,7 +307,7 @@ export function Modal({
 }: {
   open: boolean;
   onClose: () => void;
-  title: ReactNode;
+  titulo: ReactNode;
   subtitle?: ReactNode;
   children: ReactNode;
   wide?: boolean;
@@ -333,7 +333,7 @@ export function Modal({
       >
         <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-line">
           <div className="min-w-0">
-            <h3 className="text-base font-bold text-ink leading-snug">{title}</h3>
+            <h3 className="text-base font-bold text-ink leading-snug">{titulo}</h3>
             {subtitle && <div className="text-xs text-muted mt-1">{subtitle}</div>}
           </div>
           <button
@@ -356,12 +356,12 @@ export function Modal({
 /* ------------------------------------------------------------------ */
 export function EmptyState({
   icon,
-  title,
+  titulo,
   children,
   action,
 }: {
   icon: ReactNode;
-  title: string;
+  titulo: string;
   children?: ReactNode;
   action?: ReactNode;
 }) {
@@ -371,7 +371,7 @@ export function EmptyState({
         {icon}
       </div>
       <div>
-        <h3 className="text-lg font-bold text-ink">{title}</h3>
+        <h3 className="text-lg font-bold text-ink">{titulo}</h3>
         {children && <div className="text-sm text-muted mt-2 max-w-md mx-auto leading-relaxed">{children}</div>}
       </div>
       {action}
@@ -416,7 +416,7 @@ export function StatCard({
         type="button"
         onClick={onClick}
         aria-pressed={active}
-        title={`Filtrar por ${label}`}
+        titulo={`Filtrar por ${label}`}
         className={`card-flat p-4 text-left transition hover:border-cyan-500/50 ${active ? "border-cyan-500/60 bg-cyan-500/10" : ""}`}
       >
         {content}

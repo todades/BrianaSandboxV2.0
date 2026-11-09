@@ -50,7 +50,7 @@ export function StudentDashboard({ user, onLogout }: { user: UserDTO; onLogout: 
 
         {returnedCount > 0 && tab === "sandbox" && (
           <div className="mb-4">
-            <Alert tone="warning" title={`Tienes ${returnedCount} proyecto(s) devueltos para corrección`}>
+            <Alert tone="warning" titulo={`Tienes ${returnedCount} proyecto(s) devueltos para corrección`}>
               <button
                 type="button"
                 className="font-semibold underline underline-offset-2"
@@ -111,7 +111,7 @@ export function StudentDashboard({ user, onLogout }: { user: UserDTO; onLogout: 
               <div className="card p-10">
                 <EmptyState
                   icon={<FolderOpen size={38} />}
-                  title={filtersActive ? "No hay proyectos con esos filtros" : "No has enviado proyectos todavía"}
+                  titulo={filtersActive ? "No hay proyectos con esos filtros" : "No has enviado proyectos todavía"}
                   action={
                     filtersActive ? (
                       <SecondaryButton size="sm" onClick={() => { setFilter(ALL_PROJECTS_FILTER); setSearch(""); }}>
