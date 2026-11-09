@@ -236,7 +236,7 @@ export function ReportsPanel({ user }: { user: UserDTO }) {
             <>
               {projectError && <Alert tone="error">{projectError}</Alert>}
               {projects === null ? <Spinner /> : filteredProjects.length === 0 ? (
-                <EmptyState icon={<BookOpen size={32} />} titulo="No hay proyectos en esta categoría" />
+                <EmptyState icon={<BookOpen size={32} />} title="No hay proyectos en esta categoría" />
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   {filteredProjects.map((p) => <ProjectCard key={p.id} project={p} role={user.role} showFiles={false} onOpen={(project) => setSelectedProjectId(project.id)} />)}
