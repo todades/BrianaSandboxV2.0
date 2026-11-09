@@ -257,7 +257,7 @@ export function SandboxPanel({
       const m = result.metadata;
       setMeta((prev) => ({
         ...prev,
-        title: m.titulo || prev.title,
+        title: m.titulo || prev.title, // ✅ Corregido de "titulo:" a "title:"
         codigo: m.codigo || prev.codigo,
         slug: m.slug || prev.slug,
         tipoRecurso: m.tipoRecurso || prev.tipoRecurso,
