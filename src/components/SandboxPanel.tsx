@@ -1,3 +1,11 @@
+setMeta((prev) => ({
+        ...prev,
+        titulo: m.titulo || prev.title, // ❌ Aquí sigue diciendo "titulo:"
+```[cite: 23]
+
+Aquí tienes el archivo **`src/components/SandboxPanel.tsx`** corregido de manera definitiva para que use `title`:
+
+```tsx
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
@@ -453,7 +461,7 @@ export function SandboxPanel({
 
         <div className="mt-8 pt-5 border-t border-line flex flex-wrap gap-3 justify-between items-center">
           <div className="text-xs text-muted flex flex-wrap items-center gap-2">
-            <FileBadge size={14} />
+            <FileBadge size5={14} /> {/* Opcionalmente ajustado */}
             Los campos marcados con <span className="text-cyan-500">*</span> son obligatorios.
             {planilla ? (
               <span className="text-emerald-500 font-medium inline-flex items-center gap-1">
