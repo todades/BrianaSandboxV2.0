@@ -65,7 +65,7 @@ export function ProjectCard({
               </span>
             )}
           </div>
-          <h3 className="font-bold text-ink leading-snug line-clamp-2">{project.titulo}</h3>
+          <h3 className="font-bold text-ink leading-snug line-clamp-2">{project.title}</h3>
           <p className="text-xs text-muted mt-1.5 line-clamp-1">
             {project.tipoRecurso} · {project.lineaInvestigacion}
           </p>
@@ -125,7 +125,7 @@ export function ProjectCard({
 /* ------------------------------------------------------------------ */
 function toForm(p: ProjectDTO): MetadataForm {
   return {
-    titulo: p.titulo,
+    title: p.title,
     codigo: p.codigo ?? "",
     slug: p.slug ?? "",
     tipoRecurso: p.tipoRecurso,
@@ -276,7 +276,7 @@ export function ProjectDetailModal({
   async function deleteProject() {
     if (!project || user.role !== "administrador") return;
     const projectId = project.id;
-    if (!window.confirm(`¿Eliminar permanentemente el proyecto «${project.titulo}» y sus archivos asociados?`)) return;
+    if (!window.confirm(`¿Eliminar permanentemente el proyecto «${project.title}» y sus archivos asociados?`)) return;
     setBusy("eliminar");
     setError(null);
     try {
@@ -349,7 +349,7 @@ export function ProjectDetailModal({
       titulo={
         <span className="flex items-center gap-2">
           <BookMarked size={18} className="text-cyan-500 flex-shrink-0" />
-          {project.titulo}
+          {project.title}
         </span>
       }
       subtitle={
@@ -395,10 +395,10 @@ export function ProjectDetailModal({
                   <span className="text-muted2">({formatBytes(project.pdf.size)})</span>
                 </span>
                 <span className="flex gap-1 flex-shrink-0">
-                  <a href={`/api/files/${project.pdf.id}`} target="_blank" rel="noreferrer" titulo="Ver" className="p-1 rounded hover:text-cyan-500 text-muted">
+                  <a href={`/api/files/${project.pdf.id}`} target="_blank" rel="noreferrer" title="Ver" className="p-1 rounded hover:text-cyan-500 text-muted">
                     <Eye size={14} />
                   </a>
-                  <a href={`/api/files/${project.pdf.id}?download=1`} titulo="Descargar" className="p-1 rounded hover:text-cyan-500 text-muted">
+                  <a href={`/api/files/${project.pdf.id}?download=1`} title="Descargar" className="p-1 rounded hover:text-cyan-500 text-muted">
                     <Download size={14} />
                   </a>
                 </span>
@@ -413,10 +413,10 @@ export function ProjectDetailModal({
                   <span className="truncate">{project.planilla.filename}</span>
                 </span>
                 <span className="flex gap-1 flex-shrink-0">
-                  <a href={`/api/files/${project.planilla.id}`} target="_blank" rel="noreferrer" titulo="Ver" className="p-1 rounded hover:text-cyan-500 text-muted">
+                  <a href={`/api/files/${project.planilla.id}`} target="_blank" rel="noreferrer" title="Ver" className="p-1 rounded hover:text-cyan-500 text-muted">
                     <Eye size={14} />
                   </a>
-                  <a href={`/api/files/${project.planilla.id}?download=1`} titulo="Descargar" className="p-1 rounded hover:text-cyan-500 text-muted">
+                  <a href={`/api/files/${project.planilla.id}?download=1`} title="Descargar" className="p-1 rounded hover:text-cyan-500 text-muted">
                     <Download size={14} />
                   </a>
                 </span>
