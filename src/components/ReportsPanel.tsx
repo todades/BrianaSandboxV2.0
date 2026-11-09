@@ -27,7 +27,7 @@ interface Reports {
   byTrayecto: { key: string; total: number }[];
   byAnio: { key: string; total: number }[];
   tutorsLoad: { id: number; name: string; email: string; total: number }[];
-  recent: { id: number; titulo: string; status: ProjectStatus; updatedAt: string; studentName: string | null }[];
+  recent: { id: number; title: string; status: ProjectStatus; updatedAt: string; studentName: string | null }[];
 }
 
 type ReportSelection =
@@ -249,7 +249,7 @@ export function ReportsPanel({ user }: { user: UserDTO }) {
             <>
               {usersError && <Alert tone="error">{usersError}</Alert>}
               {usersLoading && users === null ? <Spinner /> : filteredUsers.length === 0 ? (
-                <EmptyState icon={<Users size={32} />} titulo="No hay cuentas en esta categoría" />
+                <EmptyState icon={<Users size={32} />} title="No hay cuentas en esta categoría" />
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -276,7 +276,7 @@ export function ReportsPanel({ user }: { user: UserDTO }) {
             <>
               {auditError && <Alert tone="error">{auditError}</Alert>}
               {auditLoading && auditLogs === null ? <Spinner /> : auditLogs?.length === 0 ? (
-                <EmptyState icon={<Bot size={32} />} titulo="Todavía no hay consultas de IA registradas" />
+                <EmptyState icon={<Bot size={32} />} title="Todavía no hay consultas de IA registradas" />
               ) : (
                 <div className="divide-y divide-line">
                   {(auditLogs ?? []).map((log) => {
@@ -320,7 +320,7 @@ export function ReportsPanel({ user }: { user: UserDTO }) {
               {data.recent.map((r) => (
                 <li key={r.id}>
                   <button type="button" onClick={() => setSelectedProjectId(r.id)} className="w-full rounded-lg px-2 py-2 text-left hover:bg-card2 flex items-start justify-between gap-3 text-xs">
-                    <div className="min-w-0"><p className="text-ink font-medium line-clamp-1">{r.titulo}</p><p className="text-muted2">{r.studentName} · {formatDate(r.updatedAt)}</p></div>
+                    <div className="min-w-0"><p className="text-ink font-medium line-clamp-1">{r.title}</p><p className="text-muted2">{r.studentName} · {formatDate(r.updatedAt)}</p></div>
                     <StatusBadge status={r.status} />
                   </button>
                 </li>
