@@ -111,7 +111,7 @@ export function StudentDashboard({ user, onLogout }: { user: UserDTO; onLogout: 
               <div className="card p-10">
                 <EmptyState
                   icon={<FolderOpen size={38} />}
-                  titulo={filtersActive ? "No hay proyectos con esos filtros" : "No has enviado proyectos todavía"}
+                  title={filtersActive ? "No hay proyectos con esos filtros" : "No has enviado proyectos todavía"}
                   action={
                     filtersActive ? (
                       <SecondaryButton size="sm" onClick={() => { setFilter(ALL_PROJECTS_FILTER); setSearch(""); }}>
