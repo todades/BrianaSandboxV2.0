@@ -70,14 +70,14 @@ export function ThemeToggle({
     <button
       type="button"
       onClick={toggle}
-      titulo="Alternar modo claro / oscuro"
+      title="Alternar modo claro / oscuro"
       aria-label="Cambiar tema"
       className={`${position} w-11 h-11 rounded-full bg-card2 border border-line shadow-lg flex items-center justify-center text-muted hover:text-cyan-500 hover:border-cyan-500/60 hover:scale-105 transition`}
     >
-      <span className="hidden dark:block" titulo="Cambiar a modo claro">
+      <span className="hidden dark:block" title="Cambiar a modo claro">
         <Sun size={18} />
       </span>
-      <span className="block dark:hidden" titulo="Cambiar a modo oscuro">
+      <span className="block dark:hidden" title="Cambiar a modo oscuro">
         <Moon size={18} />
       </span>
     </button>
@@ -356,12 +356,12 @@ export function Modal({
 /* ------------------------------------------------------------------ */
 export function EmptyState({
   icon,
-  titulo,
+  title,
   children,
   action,
 }: {
   icon: ReactNode;
-  titulo: string;
+  title: string;
   children?: ReactNode;
   action?: ReactNode;
 }) {
@@ -371,7 +371,7 @@ export function EmptyState({
         {icon}
       </div>
       <div>
-        <h3 className="text-lg font-bold text-ink">{titulo}</h3>
+        <h3 className="text-lg font-bold text-ink">{title}</h3>
         {children && <div className="text-sm text-muted mt-2 max-w-md mx-auto leading-relaxed">{children}</div>}
       </div>
       {action}
@@ -416,7 +416,7 @@ export function StatCard({
         type="button"
         onClick={onClick}
         aria-pressed={active}
-        titulo={`Filtrar por ${label}`}
+        title={`Filtrar por ${label}`}
         className={`card-flat p-4 text-left transition hover:border-cyan-500/50 ${active ? "border-cyan-500/60 bg-cyan-500/10" : ""}`}
       >
         {content}
