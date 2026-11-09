@@ -317,7 +317,6 @@ function AuditTab() {
       setOffset(result.offset);
       setError(null);
     } catch (e) {
-      // No vaciamos el historial que ya estaba visible cuando falla actualizar.
       setError(e instanceof Error ? e.message : "No se pudo actualizar el historial.");
     } finally {
       setLoading(false);
@@ -379,7 +378,7 @@ function AuditTab() {
       {logs === null ? (
         <Spinner />
       ) : visibleLogs.length === 0 ? (
-        <div className="p-8"><EmptyState icon={<ShieldCheck size={36} />} titulo={search ? "No hay coincidencias" : "Sin actividad registrada"} /></div>
+        <div className="p-8"><EmptyState icon={<ShieldCheck size={36} />} title={search ? "No hay coincidencias" : "Sin actividad registrada"} /></div>
       ) : (
         <div className="divide-y divide-line">
           {visibleLogs.map(({ log, readable }) => (
@@ -556,7 +555,7 @@ function TutorSubmissionsTab({ user }: { user: UserDTO }) {
         <Spinner />
       ) : list.length === 0 ? (
         <div className="card p-10">
-          <EmptyState icon={<ClipboardCheck size={38} />} titulo="No hay proyectos en esta categoría">
+          <EmptyState icon={<ClipboardCheck size={38} />} title="No hay proyectos en esta categoría">
             {filtersActive ? "Cambia la categoría o limpia los filtros para ver otros proyectos." : "Los proyectos enviados por los tutores aparecerán aquí para su revisión y publicación."}
           </EmptyState>
         </div>

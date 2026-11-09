@@ -160,7 +160,7 @@ export function AccountsAdmin({ user }: { user: UserDTO }) {
         <Spinner />
       ) : filtered.length === 0 ? (
         <div className="card p-8">
-          <EmptyState icon={<UserCheck size={34} />} titulo="No hay cuentas en esta categoría" />
+          <EmptyState icon={<UserCheck size={34} />} title="No hay cuentas en esta categoría" />
         </div>
       ) : (
         <div className="card overflow-x-auto">
