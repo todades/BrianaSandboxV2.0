@@ -1,6 +1,6 @@
 import { and, eq, or } from "drizzle-orm";
 import { db } from "@/db";
-import { files, projects, users } from "@/db/schema";
+import { files, notifications, projects, users } from "@/db/schema";
 import { handleError, HttpError, requireUser } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import {
@@ -94,13 +94,6 @@ interface PatchBody {
   metadata?: Record<string, string>;
 }
 
-/**
- * Flujo institucional:
- *  - Estudiante (devuelto): "guardar" / "reenviar" -> enviado_tutor.
- *  - Tutor asignado (enviado_tutor o devuelto_tutor): puede "devolver" al estudiante,
- *    "validar" o "reenviar_admin" según el estado.
- *  - Administrador (validado_tutor): "devolver_tutor", "publicar" o "rechazar".
- */
 export async function PATCH(req: Request, ctx: Ctx) {
   try {
     const user = await requireUser();
@@ -117,7 +110,6 @@ export async function PATCH(req: Request, ctx: Ctx) {
 
     const updates: Partial<typeof projects.$inferInsert> = { updatedAt: new Date() };
 
-    // Capacidades según rol y estado (el administrador también puede ser el revisor destinatario).
     const isReviewer =
       (user.role === "tutor" || user.role === "administrador") &&
       current.tutorId === user.id &&
@@ -268,7 +260,42 @@ export async function PATCH(req: Request, ctx: Ctx) {
 
     if (nextStatus) updates.status = nextStatus;
 
+    // 1. Actualizar el proyecto en la base de datos
     await db.update(projects).set(updates).where(eq(projects.id, projectId));
+
+    // 2. Disparar notificación interna automática si cambió el estado
+    if (nextStatus) {
+      let notifTitle = "Actualización en tu proyecto";
+      let notifMessage = observaciones || `El estado de tu proyecto cambió a: ${nextStatus}`;
+      let targetUserId = current.studentId;
+
+      if (action === "validar") {
+        notifTitle = "¡Proyecto Validado por el Tutor!";
+        notifMessage = "Tu tutor ha validado el proyecto y lo ha enviado para la revisión del administrador.";
+      } else if (action === "devolver") {
+        notifTitle = "Proyecto Devuelto con Observaciones";
+        notifMessage = `Tu tutor ha indicado correcciones: "${observaciones}"`;
+      } else if (action === "publicado") {
+        notifTitle = "¡Proyecto Publicado!";
+        notifMessage = "Tu proyecto ha sido aprobado y publicado formalmente en el repositorio.";
+      } else if (action === "rechazado") {
+        notifTitle = "Proyecto Rechazado";
+        notifMessage = `El administrador ha rechazado el proyecto. Motivo: "${observaciones}"`;
+      } else if (action === "devolver_tutor") {
+        notifTitle = "Proyecto Devuelto al Tutor";
+        notifMessage = `El administrador devolvió el proyecto al tutor: "${observaciones}"`;
+        targetUserId = current.tutorId ?? current.studentId;
+      }
+
+      await db.insert(notifications).values({
+        userId: targetUserId,
+        projectId: projectId,
+        title: notifTitle,
+        message: notifMessage,
+        type: nextStatus,
+      });
+    }
+
     await logAudit({
       user,
       action: auditAction,
@@ -279,8 +306,6 @@ export async function PATCH(req: Request, ctx: Ctx) {
         a: nextStatus ?? current.status,
         observaciones: observaciones || undefined,
         camposEditados: Object.keys(md),
-        correccionesPreviasDelAdministrador:
-          action === "devolver" && current.status === "devuelto_tutor" ? current.observaciones ?? undefined : undefined,
       },
     });
 

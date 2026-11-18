@@ -1,3 +1,4 @@
+typescript
 import {
   pgTable,
   pgEnum,
@@ -19,10 +20,15 @@ import { sql } from "drizzle-orm";
 export const roleEnum = pgEnum("user_role", ["estudiante", "tutor", "administrador"]);
 
 export const projectStatusEnum = pgEnum("project_status", [
+  "borrador",
   "enviado_tutor", // Estudiante -> Tutor
   "devuelto", // Tutor -> Estudiante (correcciones)
   "devuelto_tutor", // Administrador -> Tutor (correcciones)
   "validado_tutor", // Tutor -> Administrador
+  "observado",
+  "en_revision",
+  "pendiente_admin",
+  "aprobado",
   "publicado", // Administrador publica en el repositorio
   "rechazado", // Administrador rechaza
 ]);
@@ -179,6 +185,28 @@ export const auditLogs = pgTable(
 );
 
 /* ------------------------------------------------------------------ */
+/* Notifications (Notificaciones internas)                             */
+/* ------------------------------------------------------------------ */
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    projectId: integer("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    message: text("message").notNull(),
+    type: text("type").notNull(),
+    isRead: boolean("is_read").default(false).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("notifications_user_idx").on(t.userId)]
+);
+
+/* ------------------------------------------------------------------ */
 /* Server settings (e.g. Gemini key configured from the admin panel)   */
 /* ------------------------------------------------------------------ */
 export const settings = pgTable("settings", {
@@ -192,3 +220,4 @@ export type ProjectRow = typeof projects.$inferSelect;
 export type FileRow = typeof files.$inferSelect;
 export type AuditRow = typeof auditLogs.$inferSelect;
 export type VerificationCodeRow = typeof verificationCodes.$inferSelect;
+export type NotificationRow = typeof notifications.$inferSelect;
