@@ -35,11 +35,17 @@ export async function DELETE(_req: Request, ctx: Ctx) {
     const user = await requireUser(["administrador"]);
     const { id: rawId } = await ctx.params;
     const projectId = Number.parseInt(rawId, 10);
-    if (!Number.isSafeInteger(projectId) || projectId < 1) throw new HttpError(400, "Identificador de proyecto inválido.");
+    if (!Number.isSafeInteger(projectId) || projectId < 1) {
+      throw new HttpError(400, "Identificador de proyecto inválido.");
+    }
 
     const deleted = await db.transaction(async (tx) => {
       const [current] = await tx
-        .select({ title: projects.title, pdfFileId: projects.pdfFileId, planillaFileId: projects.planillaFileId })
+        .select({
+          title: projects.title,
+          pdfFileId: projects.pdfFileId,
+          planillaFileId: projects.planillaFileId,
+        })
         .from(projects)
         .where(eq(projects.id, projectId))
         .limit(1);
@@ -47,7 +53,13 @@ export async function DELETE(_req: Request, ctx: Ctx) {
 
       await tx.delete(projects).where(eq(projects.id, projectId));
 
-      const fileIds = [...new Set([current.pdfFileId, current.planillaFileId].filter((fileId): fileId is number => fileId !== null))];
+      const fileIds = [
+        ...new Set(
+          [current.pdfFileId, current.planillaFileId].filter(
+            (fileId): fileId is number => fileId !== null
+          )
+        ),
+      ];
       let removedFiles = 0;
       for (const fileId of fileIds) {
         const [stillUsed] = await tx
@@ -72,7 +84,12 @@ export async function DELETE(_req: Request, ctx: Ctx) {
       details: { title: deleted.title, archivosEliminados: deleted.removedFiles },
     });
 
-    return Response.json({ ok: true, id: projectId, title: deleted.title, archivosEliminados: deleted.removedFiles });
+    return Response.json({
+      ok: true,
+      id: projectId,
+      title: deleted.title,
+      archivosEliminados: deleted.removedFiles,
+    });
   } catch (e) {
     return handleError(e);
   }
@@ -126,34 +143,47 @@ export async function PATCH(req: Request, ctx: Ctx) {
     const canEdit = isReviewer || isTutorCorrection || isAdminFinal || isStudentFix;
 
     if (Object.keys(md).length > 0) {
-      if (!canEdit) throw new HttpError(403, "El proyecto no puede editarse en su estado actual por tu rol.");
+      if (!canEdit) {
+        throw new HttpError(403, "El proyecto no puede editarse en su estado actual por tu rol.");
+      }
       if (md.title !== undefined) {
         if (md.title.trim().length < 8) throw new HttpError(400, "El título es obligatorio.");
         updates.title = md.title.trim();
       }
       if (md.codigo !== undefined) updates.codigo = md.codigo.trim() || null;
-      if (md.slug !== undefined) updates.slug = md.slug.trim() || slugify(updates.title ?? current.title);
+      if (md.slug !== undefined) {
+        updates.slug = md.slug.trim() || slugify(updates.title ?? current.title);
+      }
       if (md.tipoRecurso !== undefined) {
-        if (!(TIPOS_RECURSO as readonly string[]).includes(md.tipoRecurso))
+        if (!(TIPOS_RECURSO as readonly string[]).includes(md.tipoRecurso)) {
           throw new HttpError(400, "Tipo de recurso inválido.");
+        }
         updates.tipoRecurso = md.tipoRecurso;
       }
       if (md.lineaInvestigacion !== undefined) {
-        if (!(LINEAS_INVESTIGACION as readonly string[]).includes(md.lineaInvestigacion))
+        if (!(LINEAS_INVESTIGACION as readonly string[]).includes(md.lineaInvestigacion)) {
           throw new HttpError(400, "Línea de investigación inválida.");
+        }
         updates.lineaInvestigacion = md.lineaInvestigacion;
       }
       if (md.autores !== undefined) {
-        const list = md.autores.split(";").map((a) => a.trim()).filter(Boolean);
+        const list = md.autores
+          .split(";")
+          .map((a) => a.trim())
+          .filter(Boolean);
         if (!list.length) throw new HttpError(400, "Indica al menos un autor.");
         updates.autores = list;
       }
       if (md.tutorNombre !== undefined) updates.tutorNombre = md.tutorNombre.trim() || null;
       if (md.tutorId !== undefined) {
         if (user.role !== "estudiante") {
-          const unchanged = md.tutorId === "" ? current.tutorId === null : Number(md.tutorId) === current.tutorId;
+          const unchanged =
+            md.tutorId === "" ? current.tutorId === null : Number(md.tutorId) === current.tutorId;
           if (!unchanged) {
-            throw new HttpError(403, "La cuenta del tutor asignado no puede modificarse durante la revisión o corrección.");
+            throw new HttpError(
+              403,
+              "La cuenta del tutor asignado no puede modificarse durante la revisión o corrección."
+            );
           }
         } else if (md.tutorId !== "") {
           const tid = parseInt(md.tutorId, 10);
@@ -175,13 +205,15 @@ export async function PATCH(req: Request, ctx: Ctx) {
       }
       if (md.anio !== undefined) {
         const y = md.anio.trim() ? parseInt(md.anio, 10) : null;
-        if (md.anio.trim() && (!y || y < 1990 || y > new Date().getFullYear() + 1))
+        if (md.anio.trim() && (!y || y < 1990 || y > new Date().getFullYear() + 1)) {
           throw new HttpError(400, "Año inválido.");
+        }
         updates.anio = y;
       }
       if (md.trayecto !== undefined) {
-        if (md.trayecto && !(TRAYECTOS as readonly string[]).includes(md.trayecto))
+        if (md.trayecto && !(TRAYECTOS as readonly string[]).includes(md.trayecto)) {
           throw new HttpError(400, "Trayecto inválido.");
+        }
         updates.trayecto = md.trayecto || null;
       }
       if (md.palabrasClave !== undefined) updates.palabrasClave = md.palabrasClave.trim() || null;
@@ -196,14 +228,19 @@ export async function PATCH(req: Request, ctx: Ctx) {
         if (!canEdit) throw new HttpError(403, "No puedes editar este proyecto ahora.");
         break;
       case "reenviar":
-        if (!isStudentFix) throw new HttpError(403, "Solo el estudiante puede reenviar al tutor un proyecto devuelto.");
+        if (!isStudentFix) {
+          throw new HttpError(403, "Solo el estudiante puede reenviar al tutor un proyecto devuelto.");
+        }
         nextStatus = "enviado_tutor";
         updates.observaciones = observaciones || null;
         auditAction = "PROYECTO_REENVIADO_TUTOR";
         break;
       case "reenviar_admin":
         if (!isTutorCorrection) {
-          throw new HttpError(403, "Solo el tutor asignado puede reenviar al Administrador un proyecto devuelto para correcciones.");
+          throw new HttpError(
+            403,
+            "Solo el tutor asignado puede reenviar al Administrador un proyecto devuelto para correcciones."
+          );
         }
         nextStatus = "validado_tutor";
         updates.validatedAt = new Date();
@@ -212,7 +249,10 @@ export async function PATCH(req: Request, ctx: Ctx) {
         break;
       case "devolver_tutor":
         if (!isAdminFinal) {
-          throw new HttpError(403, "Solo el Administrador puede devolver al tutor un proyecto pendiente de publicación.");
+          throw new HttpError(
+            403,
+            "Solo el Administrador puede devolver al tutor un proyecto pendiente de publicación."
+          );
         }
         if (observaciones.length < 5) {
           throw new HttpError(400, "Escribe las correcciones que debe realizar el tutor.");
@@ -222,7 +262,9 @@ export async function PATCH(req: Request, ctx: Ctx) {
         auditAction = "PROYECTO_DEVUELTO_TUTOR";
         break;
       case "validar":
-        if (!isReviewer) throw new HttpError(403, "Solo el tutor destinatario puede validar un proyecto en revisión.");
+        if (!isReviewer) {
+          throw new HttpError(403, "Solo el tutor destinatario puede validar un proyecto en revisión.");
+        }
         nextStatus = "validado_tutor";
         updates.validatedAt = new Date();
         updates.observaciones = observaciones || null;
@@ -232,23 +274,32 @@ export async function PATCH(req: Request, ctx: Ctx) {
         if (!canReturnToStudent) {
           throw new HttpError(403, "Solo el tutor asignado puede devolver este proyecto al estudiante.");
         }
-        if (observaciones.length < 5) throw new HttpError(400, "Indica las correcciones que debe realizar el estudiante.");
+        if (observaciones.length < 5) {
+          throw new HttpError(400, "Indica las correcciones que debe realizar el estudiante.");
+        }
         nextStatus = "devuelto";
         updates.observaciones = observaciones;
         auditAction = "PROYECTO_DEVUELTO_ESTUDIANTE";
         break;
       case "publicar":
-        if (!isAdminFinal)
+        if (!isAdminFinal) {
           throw new HttpError(403, "Solo el administrador puede publicar proyectos validados por el tutor.");
-        if (!current.planilla)
-          throw new HttpError(400, "No se puede publicar: falta la Planilla Firmada (requerida para aprobar).");
+        }
+        if (!current.planilla) {
+          throw new HttpError(
+            400,
+            "No se puede publicar: falta la Planilla Firmada (requerida para aprobar)."
+          );
+        }
         nextStatus = "publicado";
         updates.publishedAt = new Date();
         updates.observaciones = observaciones || null;
         auditAction = "PROYECTO_PUBLICADO";
         break;
       case "rechazar":
-        if (!isAdminFinal) throw new HttpError(403, "Solo el administrador puede rechazar proyectos validados.");
+        if (!isAdminFinal) {
+          throw new HttpError(403, "Solo el administrador puede rechazar proyectos validados.");
+        }
         if (observaciones.length < 5) throw new HttpError(400, "Indica el motivo del rechazo.");
         nextStatus = "rechazado";
         updates.observaciones = observaciones;
@@ -269,22 +320,31 @@ export async function PATCH(req: Request, ctx: Ctx) {
       let notifMessage = observaciones || `El estado de tu proyecto cambió a: ${nextStatus}`;
       let targetUserId = current.studentId;
 
-      if (action === "validar") {
-        notifTitle = "¡Proyecto Validado por el Tutor!";
-        notifMessage = "Tu tutor ha validado el proyecto y lo ha enviado para la revisión del administrador.";
-      } else if (action === "devolver") {
-        notifTitle = "Proyecto Devuelto con Observaciones";
-        notifMessage = `Tu tutor ha indicado correcciones: "${observaciones}"`;
-      } else if (action === "publicado") {
-        notifTitle = "¡Proyecto Publicado!";
-        notifMessage = "Tu proyecto ha sido aprobado y publicado formalmente en el repositorio.";
-      } else if (action === "rechazado") {
-        notifTitle = "Proyecto Rechazado";
-        notifMessage = `El administrador ha rechazado el proyecto. Motivo: "${observaciones}"`;
-      } else if (action === "devolver_tutor") {
-        notifTitle = "Proyecto Devuelto al Tutor";
-        notifMessage = `El administrador devolvió el proyecto al tutor: "${observaciones}"`;
-        targetUserId = current.tutorId ?? current.studentId;
+      switch (nextStatus) {
+        case "validado_tutor":
+          notifTitle = "¡Proyecto Validado por el Tutor!";
+          notifMessage =
+            action === "reenviar_admin"
+              ? "Tu tutor ha corregido y reenviado el proyecto para la revisión del administrador."
+              : "Tu tutor ha validado el proyecto y lo ha enviado para la revisión del administrador.";
+          break;
+        case "devuelto":
+          notifTitle = "Proyecto Devuelto con Observaciones";
+          notifMessage = `Tu tutor ha indicado correcciones: "${observaciones}"`;
+          break;
+        case "publicado":
+          notifTitle = "¡Proyecto Publicado!";
+          notifMessage = "Tu proyecto ha sido aprobado y publicado formalmente en el repositorio.";
+          break;
+        case "rechazado":
+          notifTitle = "Proyecto Rechazado";
+          notifMessage = `El administrador ha rechazado el proyecto. Motivo: "${observaciones}"`;
+          break;
+        case "devuelto_tutor":
+          notifTitle = "Proyecto Devuelto al Tutor";
+          notifMessage = `El administrador devolvió el proyecto al tutor: "${observaciones}"`;
+          targetUserId = current.tutorId ?? current.studentId;
+          break;
       }
 
       await db.insert(notifications).values({
@@ -315,3 +375,6 @@ export async function PATCH(req: Request, ctx: Ctx) {
     return handleError(e);
   }
 }
+```[cite: 8]
+
+Sube ese cambio a tu rama y dispara el despliegue en Render para verificar que el *type check* pase limpio[cite: 7].
