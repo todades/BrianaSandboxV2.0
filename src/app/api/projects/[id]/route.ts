@@ -355,26 +355,3 @@ export async function PATCH(req: Request, ctx: Ctx) {
         type: nextStatus,
       });
     }
-
-    await logAudit({
-      user,
-      action: auditAction,
-      entity: "proyecto",
-      entityId: projectId,
-      details: {
-        de: current.status,
-        a: nextStatus ?? current.status,
-        observaciones: observaciones || undefined,
-        camposEditados: Object.keys(md),
-      },
-    });
-
-    const dto = await getProjectDTO(projectId);
-    return Response.json({ project: dto });
-  } catch (e) {
-    return handleError(e);
-  }
-}
-```[cite: 8]
-
-Sube ese cambio a tu rama y dispara el despliegue en Render para verificar que el *type check* pase limpio[cite: 7].
