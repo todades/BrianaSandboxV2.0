@@ -174,7 +174,7 @@ const fileSchema = (allowedTypes: string[], label: string) =>
 export const projectSubmissionSchema = z.object({
   titulo: z.string().min(15, "El título es muy corto; debe tener al menos 15 caracteres."),
   trayecto: z.enum(["Trayecto I", "Trayecto II", "Trayecto III", "Trayecto IV"], {
-    errorMap: () => ({ message: "Debes seleccionar un Trayecto académico válido." }),
+    message: "Debes seleccionar un Trayecto académico válido.",
   }),
   resumen: z.string().min(50, "El resumen debe contener al menos 50 caracteres descriptivos."),
   repoUrl: z
