@@ -1,4 +1,3 @@
-typescript
 import {
   pgTable,
   pgEnum,
@@ -35,7 +34,11 @@ export const projectStatusEnum = pgEnum("project_status", [
 
 export const codePurposeEnum = pgEnum("code_purpose", ["verify_email", "reset_password"]);
 
-export const userApprovalStatusEnum = pgEnum("user_approval_status", ["pending", "approved", "rejected"]);
+export const userApprovalStatusEnum = pgEnum("user_approval_status", [
+  "pending",
+  "approved",
+  "rejected",
+]);
 
 /* ------------------------------------------------------------------ */
 /* Custom bytea type for binary file storage                           */
