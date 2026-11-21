@@ -52,10 +52,15 @@ export const SELECT_PLACEHOLDERS = {
 export const TUTOR_CUENTA_NOTA = "La entrega aparecerá únicamente en la cuenta del tutor seleccionado.";
 
 export const PROJECT_STATUS = [
+  "borrador",
   "enviado_tutor",
   "devuelto",
   "devuelto_tutor",
   "validado_tutor",
+  "observado",
+  "en_revision",
+  "pendiente_admin",
+  "aprobado",
   "publicado",
   "rechazado",
 ] as const;
@@ -74,6 +79,7 @@ export const STATUS_META: Record<
   ProjectStatus,
   { label: string; short: string; tone: "cyan" | "amber" | "blue" | "emerald" | "red" }
 > = {
+  borrador: { label: "Borrador · En preparación", short: "Borrador", tone: "cyan" },
   enviado_tutor: { label: "Enviado al tutor · En revisión", short: "En revisión (Tutor)", tone: "cyan" },
   devuelto: { label: "Devuelto por el tutor · Requiere correcciones", short: "Devuelto al estudiante", tone: "amber" },
   devuelto_tutor: { label: "Devuelto por el administrador · Requiere correcciones del tutor", short: "Devuelto al tutor", tone: "amber" },
@@ -82,6 +88,10 @@ export const STATUS_META: Record<
     short: "Pendiente (Admin)",
     tone: "blue",
   },
+  observado: { label: "Observado · Requiere atención", short: "Observado", tone: "amber" },
+  en_revision: { label: "En revisión", short: "En revisión", tone: "cyan" },
+  pendiente_admin: { label: "Pendiente por Administrador", short: "Pendiente Admin", tone: "blue" },
+  aprobado: { label: "Aprobado", short: "Aprobado", tone: "emerald" },
   publicado: { label: "Publicado en el repositorio institucional", short: "Publicado", tone: "emerald" },
   rechazado: { label: "Rechazado por el Administrador", short: "Rechazado", tone: "red" },
 };
