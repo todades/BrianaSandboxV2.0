@@ -85,10 +85,15 @@ function text(value: unknown): string | null {
 
 function statusLabel(value: unknown): string | null {
   const labels: Record<ProjectStatus, string> = {
+    borrador: "Borrador",
     enviado_tutor: "En revisión por el tutor",
     devuelto: "Devuelto al estudiante para correcciones",
     devuelto_tutor: "Devuelto al tutor para correcciones",
     validado_tutor: "Pendiente de revisión por el administrador",
+    observado: "Observado",
+    en_revision: "En revisión",
+    pendiente_admin: "Pendiente por administrador",
+    aprobado: "Aprobado",
     publicado: "Publicado",
     rechazado: "Rechazado",
   };
@@ -185,4 +190,4 @@ export function describeAudit(actionCode: string, entityCode: string | null, rol
   }
 
   return { action, entity, role, detail: parts.length ? parts.join(" ") : "Sin información adicional." };
-}
+      }
