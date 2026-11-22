@@ -1,4 +1,4 @@
-import { eq, or } from "drizzle-orm";
+import { eq, inArray, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { files, projects, users } from "@/db/schema";
 import { handleError, HttpError, requireUser, revokeUserSessions, toUserDTO } from "@/lib/auth";
@@ -72,7 +72,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
   }
 }
 
-/** Elimina cuentas de estudiante o tutor. Conserva auditoría y limpia archivos huérfanos de proyectos del estudiante. */
+/** Elimina cuentas de estudiante o tutor. Conserva auditoría general y limpia referencias en project_audits y archivos huérfanos. */
 export async function DELETE(_req: Request, ctx: Ctx) {
   try {
     const admin = await requireUser(["administrador"]);
@@ -90,8 +90,13 @@ export async function DELETE(_req: Request, ctx: Ctx) {
         .from(projects)
         .where(eq(projects.studentId, id));
 
-      if (ownedProjects.length) {
-        await tx.delete(projects).where(eq(projects.studentId, id));
+      const ownedProjectIds = ownedProjects.map((p) => p.id);
+
+      // Limpia registros en project_audits vinculados al usuario como actor o a sus proyectos
+      await tx.execute(sql`DELETE FROM project_audits WHERE actor_id = ${id}`);
+      if (ownedProjectIds.length) {
+        await tx.execute(sql`DELETE FROM project_audits WHERE project_id IN (${sql.join(ownedProjectIds.map((pid) => sql`${pid}`), sql`, `)})`);
+        await tx.delete(projects).where(inArray(projects.id, ownedProjectIds));
       }
 
       const fileIds = [...new Set(ownedProjects.flatMap((p) => [p.pdfFileId, p.planillaFileId]).filter((v): v is number => v !== null))];
