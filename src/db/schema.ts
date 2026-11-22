@@ -110,14 +110,14 @@ export const sessions = pgTable(
 );
 
 /* ------------------------------------------------------------------ */
-/* Files (PDF del recurso / Planilla firmada) stored in PostgreSQL     */
+/* Files (Documento PDF/Word, Planilla, Diapositivas PPTX/PDF, ZIP)    */
 /* ------------------------------------------------------------------ */
 export const files = pgTable("files", {
   id: serial("id").primaryKey(),
   filename: text("filename").notNull(),
   mimeType: text("mime_type").notNull(),
   size: integer("size").notNull(),
-  kind: varchar("kind", { length: 30 }).notNull(), // "pdf" | "planilla"
+  kind: varchar("kind", { length: 30 }).notNull(), // "pdf" | "planilla" | "diapositivas" | "zip"
   data: bytea("data").notNull(),
   uploadedBy: integer("uploaded_by").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -149,8 +149,15 @@ export const projects = pgTable(
     trayecto: varchar("trayecto", { length: 50 }),
     palabrasClave: text("palabras_clave"),
     resumen: text("resumen"),
+    repoUrl: text("repo_url"),
     pdfFileId: integer("pdf_file_id").references(() => files.id, { onDelete: "set null" }),
     planillaFileId: integer("planilla_file_id").references(() => files.id, {
+      onDelete: "set null",
+    }),
+    slidesFileId: integer("slides_file_id").references(() => files.id, {
+      onDelete: "set null",
+    }),
+    zipFileId: integer("zip_file_id").references(() => files.id, {
       onDelete: "set null",
     }),
     status: projectStatusEnum("status").notNull().default("enviado_tutor"),
