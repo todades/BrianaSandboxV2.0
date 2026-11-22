@@ -36,11 +36,17 @@ const MAX_DELIVERABLE_BYTES = 15 * 1024 * 1024; // 15 MB
 /* ------------------------------------------------------------------ */
 /* Validación de archivos                                              */
 /* ------------------------------------------------------------------ */
-type AcceptKind = "pdf" | "pdf-image" | "slides" | "zip";
+type AcceptKind = "doc" | "pdf-image" | "slides" | "zip";
+
+const WORD_MIME_TYPES = new Set([
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+]);
 
 export function validateFile(f: File, kind: AcceptKind, maxBytes: number): string | null {
   const lower = f.name.toLowerCase();
   const isPdf = f.type === "application/pdf" || lower.endsWith(".pdf");
+  const isWord = WORD_MIME_TYPES.has(f.type) || lower.endsWith(".doc") || lower.endsWith(".docx");
   const isImg = f.type.startsWith("image/");
   const isPptx =
     f.type === "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
@@ -50,8 +56,12 @@ export function validateFile(f: File, kind: AcceptKind, maxBytes: number): strin
     f.type === "application/x-zip-compressed" ||
     lower.endsWith(".zip");
 
-  if (kind === "pdf" && !isPdf) return "Solo se permiten archivos PDF.";
-  if (kind === "pdf-image" && !isPdf && !isImg) return "Solo se permiten archivos PDF o imágenes.";
+  if (kind === "doc" && !isPdf && !isWord) {
+    return "Solo se permiten documentos en formato PDF o Word (.doc, .docx).";
+  }
+  if (kind === "pdf-image" && !isPdf && !isImg) {
+    return "Solo se permiten archivos PDF o imágenes.";
+  }
   if (kind === "slides" && !isPdf && !isPptx) {
     return "Solo se permiten diapositivas en formato PDF o PPTX.";
   }
@@ -63,7 +73,7 @@ export function validateFile(f: File, kind: AcceptKind, maxBytes: number): strin
 }
 
 /* ------------------------------------------------------------------ */
-/* Zona de arrastre (PDF del recurso)                                  */
+/* Zona de arrastre (Informe en PDF o Word)                          */
 /* ------------------------------------------------------------------ */
 function DropZone({
   file,
@@ -85,7 +95,7 @@ function DropZone({
     setErr(null);
     const f = files?.[0];
     if (!f) return;
-    const problem = validateFile(f, "pdf", MAX_PDF_BYTES);
+    const problem = validateFile(f, "doc", MAX_PDF_BYTES);
     if (problem) {
       setErr(problem);
       return;
@@ -115,14 +125,16 @@ function DropZone({
           <CloudUpload size={32} />
         </div>
         <div>
-          <h3 className="text-lg font-bold text-ink">Arrastra y suelta un PDF Académico aquí</h3>
+          <h3 className="text-lg font-bold text-ink">
+            Arrastra y suelta un Informe Académico (PDF o Word) aquí
+          </h3>
           <p className="text-sm text-muted mt-1">
-            Tesis, Proyecto Socio-Tecnológico o Trabajo de Grado · Máx. 20 MB
+            Tesis, Proyecto Socio-Tecnológico o Trabajo de Grado (.PDF, .DOC, .DOCX) · Máx. 20 MB
           </p>
         </div>
         <div className="flex flex-wrap gap-3 justify-center items-center mt-1">
           <PrimaryButton icon={<FileUp size={16} />} onClick={onPick} disabled={disabled}>
-            Subir PDF del Recurso
+            Subir Informe (PDF o Word)
           </PrimaryButton>
           {file && (
             <button
@@ -332,7 +344,7 @@ export function SandboxPanel({
 
   async function runAI() {
     if (!pdf) {
-      setError("Primero sube el PDF del informe/recurso para poder analizarlo con IA.");
+      setError("Primero sube el informe o documento del proyecto para poder analizarlo con IA.");
       return;
     }
     setError(null);
@@ -364,7 +376,7 @@ export function SandboxPanel({
         "Revisa y corrige los campos antes de guardar o enviar."
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo analizar el PDF.");
+      setError(e instanceof Error ? e.message : "No se pudo analizar el documento.");
     } finally {
       setAnalyzing(false);
     }
@@ -484,10 +496,10 @@ export function SandboxPanel({
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FileSlot
-          label="1. Informe del Proyecto (PDF)"
-          hint="Documento formal en PDF · Máx. 15 MB"
+          label="1. Informe del Proyecto (PDF o Word)"
+          hint="Documento formal en PDF o Word (.pdf, .doc, .docx) · Máx. 15 MB"
           file={pdf}
-          buttonLabel="Subir Informe (PDF)"
+          buttonLabel="Subir Informe (PDF / Word)"
           icon={<FileUp size={15} />}
           onPick={() => pdfInputRef.current?.click()}
           onClear={() => {
@@ -571,12 +583,12 @@ export function SandboxPanel({
       <input
         ref={pdfInputRef}
         type="file"
-        accept="application/pdf,.pdf"
+        accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0];
           if (f) {
-            const problem = validateFile(f, "pdf", MAX_PDF_BYTES);
+            const problem = validateFile(f, "doc", MAX_PDF_BYTES);
             if (problem) {
               setErrors((prev) => ({ ...prev, informe: problem }));
               setError(problem);
