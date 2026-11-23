@@ -56,11 +56,14 @@ export interface ProjectDTO {
   trayecto: string | null;
   palabrasClave: string | null;
   resumen: string | null;
+  repoUrl?: string | null;
   status: ProjectStatus;
   observaciones: string | null;
   aiSource: string | null;
   pdf: FileInfo | null;
   planilla: FileInfo | null;
+  diapositivas?: FileInfo | null;
+  sistemaZip?: FileInfo | null;
   validatedAt: string | null;
   publishedAt: string | null;
   createdAt: string;
