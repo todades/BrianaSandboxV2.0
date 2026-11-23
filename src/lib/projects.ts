@@ -9,6 +9,8 @@ const student = alias(users, "student");
 const tutor = alias(users, "tutor");
 const pdfFile = alias(files, "pdf_file");
 const planillaFile = alias(files, "planilla_file");
+const slidesFile = alias(files, "slides_file");
+const zipFile = alias(files, "zip_file");
 
 function baseQuery() {
   return db
@@ -24,12 +26,20 @@ function baseQuery() {
       planillaId: planillaFile.id,
       planillaName: planillaFile.filename,
       planillaSize: planillaFile.size,
+      slidesId: slidesFile.id,
+      slidesName: slidesFile.filename,
+      slidesSize: slidesFile.size,
+      zipId: zipFile.id,
+      zipName: zipFile.filename,
+      zipSize: zipFile.size,
     })
     .from(projects)
     .leftJoin(student, eq(projects.studentId, student.id))
     .leftJoin(tutor, eq(projects.tutorId, tutor.id))
     .leftJoin(pdfFile, eq(projects.pdfFileId, pdfFile.id))
-    .leftJoin(planillaFile, eq(projects.planillaFileId, planillaFile.id));
+    .leftJoin(planillaFile, eq(projects.planillaFileId, planillaFile.id))
+    .leftJoin(slidesFile, eq(projects.slidesFileId, slidesFile.id))
+    .leftJoin(zipFile, eq(projects.zipFileId, zipFile.id));
 }
 
 type Row = Awaited<ReturnType<ReturnType<typeof baseQuery>["execute"]>>[number];
@@ -56,12 +66,19 @@ function toDTO(r: Row): ProjectDTO {
     trayecto: p.trayecto,
     palabrasClave: p.palabrasClave,
     resumen: p.resumen,
+    repoUrl: p.repoUrl ?? null,
     status: p.status,
     observaciones: p.observaciones,
     aiSource: p.aiSource,
     pdf: r.pdfId ? { id: r.pdfId, filename: r.pdfName ?? "recurso.pdf", size: r.pdfSize ?? 0 } : null,
     planilla: r.planillaId
       ? { id: r.planillaId, filename: r.planillaName ?? "planilla.pdf", size: r.planillaSize ?? 0 }
+      : null,
+    diapositivas: r.slidesId
+      ? { id: r.slidesId, filename: r.slidesName ?? "presentacion.pptx", size: r.slidesSize ?? 0 }
+      : null,
+    sistemaZip: r.zipId
+      ? { id: r.zipId, filename: r.zipName ?? "sistema.zip", size: r.zipSize ?? 0 }
       : null,
     validatedAt: p.validatedAt?.toISOString() ?? null,
     publishedAt: p.publishedAt?.toISOString() ?? null,
