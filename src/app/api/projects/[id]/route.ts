@@ -16,6 +16,15 @@ export const dynamic = "force-dynamic";
 
 type Ctx = { params: Promise<{ id: string }> };
 
+function isValidHttpUrl(raw: string): boolean {
+  try {
+    const u = new URL(raw);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 export async function GET(_req: Request, ctx: Ctx) {
   try {
     const user = await requireUser();
@@ -45,6 +54,8 @@ export async function DELETE(_req: Request, ctx: Ctx) {
           title: projects.title,
           pdfFileId: projects.pdfFileId,
           planillaFileId: projects.planillaFileId,
+          slidesFileId: projects.slidesFileId,
+          zipFileId: projects.zipFileId,
         })
         .from(projects)
         .where(eq(projects.id, projectId))
@@ -55,9 +66,12 @@ export async function DELETE(_req: Request, ctx: Ctx) {
 
       const fileIds = [
         ...new Set(
-          [current.pdfFileId, current.planillaFileId].filter(
-            (fileId): fileId is number => fileId !== null
-          )
+          [
+            current.pdfFileId,
+            current.planillaFileId,
+            current.slidesFileId,
+            current.zipFileId,
+          ].filter((fileId): fileId is number => fileId !== null)
         ),
       ];
       let removedFiles = 0;
@@ -65,7 +79,14 @@ export async function DELETE(_req: Request, ctx: Ctx) {
         const [stillUsed] = await tx
           .select({ id: projects.id })
           .from(projects)
-          .where(or(eq(projects.pdfFileId, fileId), eq(projects.planillaFileId, fileId)))
+          .where(
+            or(
+              eq(projects.pdfFileId, fileId),
+              eq(projects.planillaFileId, fileId),
+              eq(projects.slidesFileId, fileId),
+              eq(projects.zipFileId, fileId)
+            )
+          )
           .limit(1);
         if (!stillUsed) {
           await tx.delete(files).where(eq(files.id, fileId));
@@ -218,6 +239,13 @@ export async function PATCH(req: Request, ctx: Ctx) {
       }
       if (md.palabrasClave !== undefined) updates.palabrasClave = md.palabrasClave.trim() || null;
       if (md.resumen !== undefined) updates.resumen = md.resumen.trim() || null;
+      if (md.repoUrl !== undefined) {
+        const cleanUrl = md.repoUrl.trim();
+        if (cleanUrl && !isValidHttpUrl(cleanUrl)) {
+          throw new HttpError(400, "El enlace del repositorio o sistema debe ser una URL válida.");
+        }
+        updates.repoUrl = cleanUrl || null;
+      }
     }
 
     let nextStatus: ProjectStatus | null = null;
