@@ -22,6 +22,9 @@ import {
   BookMarked,
   GraduationCap,
   Trash2,
+  Presentation,
+  FolderArchive,
+  ExternalLink,
 } from "lucide-react";
 import { api, formatBytes, formatDate, postForm, postJson } from "@/lib/api-client";
 import { useToast } from "./toast";
@@ -95,7 +98,7 @@ export function ProjectCard({
                 project.pdf ? "border-cyan-500/30 text-cyan-600 dark:text-cyan-300" : "border-line text-muted2"
               }`}
             >
-              <FileText size={11} /> PDF {project.pdf ? "✓" : "—"}
+              <FileText size={11} /> Informe {project.pdf ? "✓" : "—"}
             </span>
             <span
               className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border ${
@@ -106,6 +109,16 @@ export function ProjectCard({
             >
               <FileCheck2 size={11} /> Planilla {project.planilla ? "✓" : "pendiente"}
             </span>
+            {project.diapositivas && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-cyan-500/30 text-cyan-600 dark:text-cyan-300">
+                <Presentation size={11} /> Presentación ✓
+              </span>
+            )}
+            {(project.sistemaZip || project.repoUrl) && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-cyan-500/30 text-cyan-600 dark:text-cyan-300">
+                <FolderArchive size={11} /> {project.sistemaZip ? "ZIP ✓" : "Repo ✓"}
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -180,7 +193,6 @@ export function ProjectDetailModal({
       .catch(() => undefined);
   }, []);
 
-  // Capacidades según rol y estado (el administrador también puede ser el revisor destinatario).
   const caps = useMemo(() => {
     if (!project) {
       return { canEdit: false, isReviewer: false, isAdminFinal: false, isTutorCorrection: false, isStudentFix: false, canReturnToStudent: false };
@@ -243,7 +255,7 @@ export function ProjectDetailModal({
         reenviar: "Proyecto corregido y reenviado al tutor.",
         reenviar_admin: "Proyecto corregido y reenviado al Administrador.",
         devolver_tutor: "Proyecto devuelto al tutor con las correcciones solicitadas.",
-        publicar: "¡Proyecto publicado oficialmente en el repositorio!", 
+        publicar: "¡Proyecto publicado oficialmente en el repositorio!",
         rechazar: "Proyecto rechazado.",
       };
       setOk(msgs[action] ?? "Operación realizada.");
@@ -382,71 +394,128 @@ export function ProjectDetailModal({
             <p className="text-xs text-muted">{project.tutorEmail ?? "—"}</p>
           </div>
           {!hideFiles && (
-            <div className="card-flat p-4 space-y-2">
-            <p className="text-[0.65rem] uppercase tracking-wider font-bold text-muted">Archivos</p>
-            {user.role === "tutor" && (
-              <p className="text-[0.7rem] text-muted2">Originales bloqueados: solo lectura y observaciones.</p>
-            )}
-            {project.pdf ? (
-              <div className="flex items-center justify-between gap-2 text-xs">
-                <span className="inline-flex items-center gap-1.5 text-ink truncate">
-                  <FileText size={13} className="text-cyan-500 flex-shrink-0" />
-                  <span className="truncate">{project.pdf.filename}</span>
-                  <span className="text-muted2">({formatBytes(project.pdf.size)})</span>
-                </span>
-                <span className="flex gap-1 flex-shrink-0">
-                  <a href={`/api/files/${project.pdf.id}`} target="_blank" rel="noreferrer" title="Ver" className="p-1 rounded hover:text-cyan-500 text-muted">
-                    <Eye size={14} />
+            <div className="card-flat p-4 space-y-2.5">
+              <p className="text-[0.65rem] uppercase tracking-wider font-bold text-muted">Archivos y Entregables</p>
+              {user.role === "tutor" && (
+                <p className="text-[0.7rem] text-muted2">Originales bloqueados: solo lectura y observaciones.</p>
+              )}
+
+              {/* Informe (PDF / Word) */}
+              {project.pdf ? (
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="inline-flex items-center gap-1.5 text-ink truncate">
+                    <FileText size={13} className="text-cyan-500 flex-shrink-0" />
+                    <span className="truncate">{project.pdf.filename}</span>
+                    <span className="text-muted2">({formatBytes(project.pdf.size)})</span>
+                  </span>
+                  <span className="flex gap-1 flex-shrink-0">
+                    <a href={`/api/files/${project.pdf.id}`} target="_blank" rel="noreferrer" title="Ver" className="p-1 rounded hover:text-cyan-500 text-muted">
+                      <Eye size={14} />
+                    </a>
+                    <a href={`/api/files/${project.pdf.id}?download=1`} title="Descargar" className="p-1 rounded hover:text-cyan-500 text-muted">
+                      <Download size={14} />
+                    </a>
+                  </span>
+                </div>
+              ) : (
+                <p className="text-xs text-muted2">Sin informe adjunto</p>
+              )}
+
+              {/* Planilla firmada */}
+              {project.planilla ? (
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="inline-flex items-center gap-1.5 text-ink truncate">
+                    <FileCheck2 size={13} className="text-emerald-500 flex-shrink-0" />
+                    <span className="truncate">{project.planilla.filename}</span>
+                  </span>
+                  <span className="flex gap-1 flex-shrink-0">
+                    <a href={`/api/files/${project.planilla.id}`} target="_blank" rel="noreferrer" title="Ver" className="p-1 rounded hover:text-cyan-500 text-muted">
+                      <Eye size={14} />
+                    </a>
+                    <a href={`/api/files/${project.planilla.id}?download=1`} title="Descargar" className="p-1 rounded hover:text-cyan-500 text-muted">
+                      <Download size={14} />
+                    </a>
+                  </span>
+                </div>
+              ) : (
+                <p className="text-xs text-amber-500 font-medium">Planilla firmada pendiente</p>
+              )}
+
+              {/* Presentación (PPTX / PDF) */}
+              {project.diapositivas && (
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="inline-flex items-center gap-1.5 text-ink truncate">
+                    <Presentation size={13} className="text-cyan-500 flex-shrink-0" />
+                    <span className="truncate">{project.diapositivas.filename}</span>
+                    <span className="text-muted2">({formatBytes(project.diapositivas.size)})</span>
+                  </span>
+                  <span className="flex gap-1 flex-shrink-0">
+                    <a href={`/api/files/${project.diapositivas.id}`} target="_blank" rel="noreferrer" title="Ver presentación" className="p-1 rounded hover:text-cyan-500 text-muted">
+                      <Eye size={14} />
+                    </a>
+                    <a href={`/api/files/${project.diapositivas.id}?download=1`} title="Descargar presentación" className="p-1 rounded hover:text-cyan-500 text-muted">
+                      <Download size={14} />
+                    </a>
+                  </span>
+                </div>
+              )}
+
+              {/* Código fuente (.ZIP) */}
+              {project.sistemaZip && (
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="inline-flex items-center gap-1.5 text-ink truncate">
+                    <FolderArchive size={13} className="text-amber-500 flex-shrink-0" />
+                    <span className="truncate">{project.sistemaZip.filename}</span>
+                    <span className="text-muted2">({formatBytes(project.sistemaZip.size)})</span>
+                  </span>
+                  <a
+                    href={`/api/files/${project.sistemaZip.id}?download=1`}
+                    title="Descargar código (.ZIP)"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-line hover:border-cyan-500/50 text-cyan-500 flex-shrink-0"
+                  >
+                    <Download size={12} /> ZIP
                   </a>
-                  <a href={`/api/files/${project.pdf.id}?download=1`} title="Descargar" className="p-1 rounded hover:text-cyan-500 text-muted">
-                    <Download size={14} />
+                </div>
+              )}
+
+              {/* Enlace del proyecto / repositorio */}
+              {project.repoUrl && (
+                <div className="pt-1 border-t border-line/60 text-xs">
+                  <a
+                    href={project.repoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-cyan-500 hover:underline break-all"
+                  >
+                    <ExternalLink size={12} className="flex-shrink-0" />
+                    <span>{project.repoUrl}</span>
                   </a>
-                </span>
-              </div>
-            ) : (
-              <p className="text-xs text-muted2">Sin PDF</p>
-            )}
-            {project.planilla ? (
-              <div className="flex items-center justify-between gap-2 text-xs">
-                <span className="inline-flex items-center gap-1.5 text-ink truncate">
-                  <FileCheck2 size={13} className="text-emerald-500 flex-shrink-0" />
-                  <span className="truncate">{project.planilla.filename}</span>
-                </span>
-                <span className="flex gap-1 flex-shrink-0">
-                  <a href={`/api/files/${project.planilla.id}`} target="_blank" rel="noreferrer" title="Ver" className="p-1 rounded hover:text-cyan-500 text-muted">
-                    <Eye size={14} />
-                  </a>
-                  <a href={`/api/files/${project.planilla.id}?download=1`} title="Descargar" className="p-1 rounded hover:text-cyan-500 text-muted">
-                    <Download size={14} />
-                  </a>
-                </span>
-              </div>
-            ) : (
-              <p className="text-xs text-amber-500 font-medium">Planilla firmada pendiente</p>
-            )}
-            {canAttach && (
-              <>
-                <input
-                  ref={planillaRef}
-                  type="file"
-                  accept="application/pdf,.pdf,image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) void attachPlanilla(f);
-                    e.target.value = "";
-                  }}
-                />
-                <SecondaryButton
-                  size="sm"
-                  icon={<Paperclip size={13} />}
-                  loading={busy === "planilla"}
-                  onClick={() => planillaRef.current?.click()}
-                >
-                  {project.planilla ? "Reemplazar planilla" : "Adjuntar planilla firmada"}
-                </SecondaryButton>
-              </>
-            )}
+                </div>
+              )}
+
+              {canAttach && (
+                <>
+                  <input
+                    ref={planillaRef}
+                    type="file"
+                    accept="application/pdf,.pdf,image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) void attachPlanilla(f);
+                      e.target.value = "";
+                    }}
+                  />
+                  <SecondaryButton
+                    size="sm"
+                    icon={<Paperclip size={13} />}
+                    loading={busy === "planilla"}
+                    onClick={() => planillaRef.current?.click()}
+                  >
+                    {project.planilla ? "Reemplazar planilla" : "Adjuntar planilla firmada"}
+                  </SecondaryButton>
+                </>
+              )}
             </div>
           )}
         </div>
